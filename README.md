@@ -1,11 +1,13 @@
 # How to Play
 
 1. Run `python main.py` to start the game
-2. You play as White, the computer plays as Black
+   Note: `python main.py` hides Black's moves, `python main.py --debug` shows Black's moves.
+3. You play as White, the computer plays as Black
     Enter moves in algebraic notation (e.g., "e2e4")
     The board is displayed with fog of war applied - you can only see squares your pieces can see
-3. Type "quit" to exit the game
+4. Type "quit" to exit the game
 
+![image](https://github.com/user-attachments/assets/83114076-b9d9-4383-833b-7f65cd65122f)
 
 # Technical Details
 
