@@ -13,8 +13,6 @@ We'll implement this using:
     Bitboards (u64): each bit represents a square.
     Precomputed vision masks for each square.
 """
-# verify.py
-
 import copy
 
 BOARD_SIZE = 8

@@ -15,6 +15,9 @@ from verify import (
     create_masked_board, 
     print_board,
     in_bounds,
+    KNIGHT_OFFSETS,
+    KING_OFFSETS,
+    DIRECTIONS,
     bit_to_square
 )
 
@@ -34,6 +37,7 @@ class FogOfWarChess:
         self.move_history = []
         self.last_ai_move_info = ""  # Store AI move info for debug purposes
         
+        # TODO: Fog of War can't have checks/checkmates
         # Track kings for check/checkmate detection
         self.king_positions = {
             WHITE: (7, 4),  # e1
@@ -143,14 +147,12 @@ class FogOfWarChess:
             # TODO: En passant (omitted for simplicity)
         
         elif piece_type == KNIGHT:
-            from verify import KNIGHT_OFFSETS
             for dx, dy in KNIGHT_OFFSETS:
                 nx, ny = x + dx, y + dy
                 if in_bounds(nx, ny) and (self.board[nx][ny] is EMPTY or self.board[nx][ny][0] != player):
                     moves.append((nx, ny))
         
         elif piece_type == KING:
-            from verify import KING_OFFSETS
             for dx, dy in KING_OFFSETS:
                 nx, ny = x + dx, y + dy
                 if in_bounds(nx, ny) and (self.board[nx][ny] is EMPTY or self.board[nx][ny][0] != player):
@@ -166,7 +168,6 @@ class FogOfWarChess:
             if piece_type in [ROOK, QUEEN]:
                 directions.extend(['N', 'S', 'E', 'W'])
             
-            from verify import DIRECTIONS
             for dir_name in directions:
                 dx, dy = DIRECTIONS[dir_name]
                 nx, ny = x + dx, y + dy
@@ -218,21 +219,18 @@ class FogOfWarChess:
                 return True
         
         # Check for knight attacks
-        from verify import KNIGHT_OFFSETS
         for dx, dy in KNIGHT_OFFSETS:
             nx, ny = x + dx, y + dy
             if in_bounds(nx, ny) and board[nx][ny] and board[nx][ny][0] == attacker_color and board[nx][ny][1].lower() == KNIGHT:
                 return True
         
         # Check for king attacks (needed for checking adjacent squares)
-        from verify import KING_OFFSETS
         for dx, dy in KING_OFFSETS:
             nx, ny = x + dx, y + dy
             if in_bounds(nx, ny) and board[nx][ny] and board[nx][ny][0] == attacker_color and board[nx][ny][1].lower() == KING:
                 return True
         
         # Check for sliding piece attacks (bishop, rook, queen)
-        from verify import DIRECTIONS
         bishop_dirs = ['NE', 'NW', 'SE', 'SW']
         rook_dirs = ['N', 'S', 'E', 'W']
         
@@ -327,6 +325,8 @@ class FogOfWarChess:
             'promotion': is_promotion
         }
         
+        # TODO: store full history of game in a .txt file, 
+        ## so the game history can be reviewed & learned from/trained on
         self.move_history.append(self.last_move)
         
         # Check for checkmate or stalemate
@@ -357,8 +357,9 @@ class FogOfWarChess:
             
             self.game_over = True
     
+    # TODO: Use a smarter AI (maybe import a package to do this)
     def ai_make_move(self):
-        """Make a random legal move for the AI player (Black)."""
+        """Make a random legal move for the 'AI' player (Black)."""
         if self.current_player != BLACK or self.game_over:
             return False
         
@@ -466,6 +467,8 @@ def play_fog_chess(debug=False):
         print(f"Game over! {game.winner.capitalize()} wins!")
 
 if __name__ == "__main__":
+
+    # TODO: add AI levels (beginner = random, etc.)
     # Check for debug flag
     debug_mode = "--debug" in sys.argv
     play_fog_chess(debug=debug_mode)
