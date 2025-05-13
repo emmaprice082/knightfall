@@ -4,11 +4,11 @@ Fog of War Chess - Main Game
 This file implements a playable fog of war chess game using the visibility rules
 from verify.py. The player plays as White against a computer opponent as Black.
 """
-
+import argparse
+import copy
 import random
 import time
-import copy
-import sys
+
 from verify import (
     get_visible_squares, 
     verify_move, 
@@ -75,6 +75,7 @@ class FogOfWarChess:
         - debug: Whether to show additional debug information
         """
         # In non-debug mode, only show White's view or the full board
+        
         if player == BLACK and not debug:
             return
             
@@ -411,8 +412,9 @@ class FogOfWarChess:
             print(f"Error parsing move: {e}")
             return None
 
-def play_fog_chess(debug=False):
-    """Main function to play fog of war chess."""
+
+def play_ai(debug=False):
+    # Main function to play fog of war chess.
     game = FogOfWarChess()
     
     print("Welcome to Fog of War Chess!")
@@ -465,9 +467,62 @@ def play_fog_chess(debug=False):
     else:
         print(f"Game over! {game.winner.capitalize()} wins!")
 
+
+def play_fog_chess(debug=False):
+    game = FogOfWarChess()
+    print("Welcome to Fog of War Chess!")
+    print("Enter moves in algebraic notation, e.g., e2e4")
+    print("Type 'resign' to concede the game.\n")
+
+    while not game.game_over:
+        player = game.current_player
+        game.display_board(player=player)
+        
+        print(f"\n{player.capitalize()}'s turn")
+        move_input = input("Enter your move (e.g., e2e4): ").strip().lower()
+
+        if move_input == "resign":
+            print(f"{player.capitalize()} resigns. {('Black' if player == WHITE else 'White')} wins!")
+            break
+
+        if move_input == "quit":
+            print("Game has been ended by the player.")
+            break
+        
+        if len(move_input) != 4:
+            print("Invalid format. Please enter moves like e2e4.")
+            continue
+
+        try:
+            move = {
+                'from': game._algebraic_to_coord(move_input[:2]),
+                'to': game._algebraic_to_coord(move_input[2:])
+            }
+        except Exception:
+            print("Invalid move format.")
+            continue
+
+        success = game.make_move(move)
+        if not success:
+            print("Invalid move. Try again.")
+
+    print("\nGame over.")
+
+
 if __name__ == "__main__":
 
     # TODO: add AI levels (beginner = random, etc.)
     # Check for debug flag
-    debug_mode = "--debug" in sys.argv
-    play_fog_chess(debug=debug_mode)
+    parser = argparse.ArgumentParser(description="Fog of War Chess Game")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--ai', action='store_true', help="Play against the AI")
+    group.add_argument('--two', action='store_true', help="Play 2-player Fog of War")
+
+    parser.add_argument('--debug', action='store_true', help="Enable debug mode")
+
+    args = parser.parse_args()
+
+    if args.ai:
+        play_ai(debug=args.debug)
+    elif args.two:
+        play_fog_chess()
