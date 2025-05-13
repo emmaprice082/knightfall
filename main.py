@@ -17,8 +17,7 @@ from verify import (
     in_bounds,
     KNIGHT_OFFSETS,
     KING_OFFSETS,
-    DIRECTIONS,
-    bit_to_square
+    DIRECTIONS
 )
 
 # Chess piece constants
