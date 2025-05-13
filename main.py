@@ -4,18 +4,20 @@ Fog of War Chess - Main Game
 This file implements a playable fog of war chess game using the visibility rules
 from verify.py. The player plays as White against a computer opponent as Black.
 """
-
+import argparse
+import copy
 import random
 import time
-import copy
-import sys
+
 from verify import (
     get_visible_squares, 
     verify_move, 
     create_masked_board, 
     print_board,
     in_bounds,
-    bit_to_square
+    KNIGHT_OFFSETS,
+    KING_OFFSETS,
+    DIRECTIONS
 )
 
 # Chess piece constants
@@ -34,6 +36,7 @@ class FogOfWarChess:
         self.move_history = []
         self.last_ai_move_info = ""  # Store AI move info for debug purposes
         
+        # TODO: Fog of War can't have checks/checkmates
         # Track kings for check/checkmate detection
         self.king_positions = {
             WHITE: (7, 4),  # e1
@@ -72,6 +75,7 @@ class FogOfWarChess:
         - debug: Whether to show additional debug information
         """
         # In non-debug mode, only show White's view or the full board
+        
         if player == BLACK and not debug:
             return
             
@@ -133,7 +137,13 @@ class FogOfWarChess:
                 start_row = 6 if player == WHITE else 1
                 if x == start_row and in_bounds(x + 2*direction, y) and self.board[x + 2*direction][y] is EMPTY:
                     moves.append((x + 2*direction, y))
-            
+        
+            # Double move from starting position (2 spaces)
+            start_row = 6 if player == WHITE else 1
+            if x == start_row:
+                if in_bounds(x + 2*direction, y) and self.board[x + 2*direction][y] is EMPTY:
+                    moves.append((x + 2*direction, y))
+
             # Captures
             for dy in [-1, 1]:
                 nx, ny = x + direction, y + dy
@@ -143,14 +153,12 @@ class FogOfWarChess:
             # TODO: En passant (omitted for simplicity)
         
         elif piece_type == KNIGHT:
-            from verify import KNIGHT_OFFSETS
             for dx, dy in KNIGHT_OFFSETS:
                 nx, ny = x + dx, y + dy
                 if in_bounds(nx, ny) and (self.board[nx][ny] is EMPTY or self.board[nx][ny][0] != player):
                     moves.append((nx, ny))
         
         elif piece_type == KING:
-            from verify import KING_OFFSETS
             for dx, dy in KING_OFFSETS:
                 nx, ny = x + dx, y + dy
                 if in_bounds(nx, ny) and (self.board[nx][ny] is EMPTY or self.board[nx][ny][0] != player):
@@ -166,7 +174,6 @@ class FogOfWarChess:
             if piece_type in [ROOK, QUEEN]:
                 directions.extend(['N', 'S', 'E', 'W'])
             
-            from verify import DIRECTIONS
             for dir_name in directions:
                 dx, dy = DIRECTIONS[dir_name]
                 nx, ny = x + dx, y + dy
@@ -218,21 +225,18 @@ class FogOfWarChess:
                 return True
         
         # Check for knight attacks
-        from verify import KNIGHT_OFFSETS
         for dx, dy in KNIGHT_OFFSETS:
             nx, ny = x + dx, y + dy
             if in_bounds(nx, ny) and board[nx][ny] and board[nx][ny][0] == attacker_color and board[nx][ny][1].lower() == KNIGHT:
                 return True
         
         # Check for king attacks (needed for checking adjacent squares)
-        from verify import KING_OFFSETS
         for dx, dy in KING_OFFSETS:
             nx, ny = x + dx, y + dy
             if in_bounds(nx, ny) and board[nx][ny] and board[nx][ny][0] == attacker_color and board[nx][ny][1].lower() == KING:
                 return True
         
         # Check for sliding piece attacks (bishop, rook, queen)
-        from verify import DIRECTIONS
         bishop_dirs = ['NE', 'NW', 'SE', 'SW']
         rook_dirs = ['N', 'S', 'E', 'W']
         
@@ -327,6 +331,8 @@ class FogOfWarChess:
             'promotion': is_promotion
         }
         
+        # TODO: store full history of game in a .txt file, 
+        ## so the game history can be reviewed & learned from/trained on
         self.move_history.append(self.last_move)
         
         # Check for checkmate or stalemate
@@ -357,8 +363,9 @@ class FogOfWarChess:
             
             self.game_over = True
     
+    # TODO: Use a smarter AI (maybe import a package to do this)
     def ai_make_move(self):
-        """Make a random legal move for the AI player (Black)."""
+        """Make a random legal move for the 'AI' player (Black)."""
         if self.current_player != BLACK or self.game_over:
             return False
         
@@ -411,8 +418,9 @@ class FogOfWarChess:
             print(f"Error parsing move: {e}")
             return None
 
-def play_fog_chess(debug=False):
-    """Main function to play fog of war chess."""
+
+def play_ai(debug=False):
+    # Main function to play fog of war chess.
     game = FogOfWarChess()
     
     print("Welcome to Fog of War Chess!")
@@ -465,7 +473,62 @@ def play_fog_chess(debug=False):
     else:
         print(f"Game over! {game.winner.capitalize()} wins!")
 
+
+def play_fog_chess(debug=False):
+    game = FogOfWarChess()
+    print("Welcome to Fog of War Chess!")
+    print("Enter moves in algebraic notation, e.g., e2e4")
+    print("Type 'resign' to concede the game.\n")
+
+    while not game.game_over:
+        player = game.current_player
+        game.display_board(player=player)
+        
+        print(f"\n{player.capitalize()}'s turn")
+        move_input = input("Enter your move (e.g., e2e4): ").strip().lower()
+
+        if move_input == "resign":
+            print(f"{player.capitalize()} resigns. {('Black' if player == WHITE else 'White')} wins!")
+            break
+
+        if move_input == "quit":
+            print("Game has been ended by the player.")
+            break
+
+        if len(move_input) != 4:
+            print("Invalid format. Please enter moves like e2e4.")
+            continue
+
+        try:
+            move = {
+                'from': game._algebraic_to_coord(move_input[:2]),
+                'to': game._algebraic_to_coord(move_input[2:])
+            }
+        except Exception:
+            print("Invalid move format.")
+            continue
+
+        success = game.make_move(move)
+        if not success:
+            print("Invalid move. Try again.")
+
+    print("\nGame over.")
+
+
 if __name__ == "__main__":
+
+    # TODO: add AI levels (beginner = random, etc.)
     # Check for debug flag
-    debug_mode = "--debug" in sys.argv
-    play_fog_chess(debug=debug_mode)
+    parser = argparse.ArgumentParser(description="Fog of War Chess Game")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--ai', action='store_true', help="Play against the AI")
+    group.add_argument('--two', action='store_true', help="Play 2-player Fog of War")
+
+    parser.add_argument('--debug', action='store_true', help="Enable debug mode")
+
+    args = parser.parse_args()
+
+    if args.ai:
+        play_ai(debug=args.debug)
+    elif args.two:
+        play_fog_chess()
