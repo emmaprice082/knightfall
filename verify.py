@@ -71,10 +71,17 @@ def get_visible_squares(board, player_color, include_pawn_captures=True) -> int:
                 visible |= square_to_bit(x, y)
 
                 if ptype == 'p':  # pawn
-                    # Forward vision
+                    # Direction of pawn movement
                     dx = -1 if player_color == 'white' else 1
+
+                    # Normal 1 square forward vision
                     if in_bounds(x + dx, y):
                         visible |= square_to_bit(x + dx, y)
+
+                    # Pawn can see two squares ahead on its first move
+                    start_row = 6 if player_color == 'white' else 1
+                    if x == start_row and in_bounds(x + 2*dx, y):
+                        visible |= square_to_bit(x + 2*dx, y)
                     
                     # Pawn capture squares (optional)
                     if include_pawn_captures:
@@ -152,10 +159,31 @@ def verify_move(board, move, player_color):
     # The player must be able to see the destination square
     if not (visible_squares & to_square_bit):
         return False, False, False, "Destination square not visible"
-    
+
+    # General move validation for other pieces   
     # For our simplified example, assume the move is valid
     # In a real chess engine, we'd need to validate piece movement rules
-    
+
+    # Pawn specific move validation
+    if piece[1].lower() == 'p':  # If it's a pawn
+        direction = -1 if player_color == 'white' else 1
+        start_row = 6 if player_color == 'white' else 1
+        
+        # Check for 1 square move
+        if from_y == to_y and abs(from_x - to_x) == 1 and board[to_x][to_y] is None:
+            return True, False, False, "Valid pawn move (1 square)"
+        
+        # Check for 2 square move (only on the first move)
+        if from_y == to_y and abs(from_x - to_x) == 2 and from_x == start_row and board[to_x][to_y] is None:
+            return True, False, False, "Valid pawn move (2 squares)"
+        
+        # Capture logic for pawns (must move diagonally and capture an opponent's piece)
+        if abs(from_y - to_y) == 1 and abs(from_x - to_x) == 1:
+            if board[to_x][to_y] is not None and board[to_x][to_y][0] != player_color:
+                return True, True, False, "Valid pawn capture"
+            else:
+                return False, False, False, "Invalid pawn capture (no opponent piece)"
+        
     # Check for capture visibility
     capture_visible = False
     is_capture = board[to_x][to_y] is not None and board[to_x][to_y][0] != player_color
