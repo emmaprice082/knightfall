@@ -137,7 +137,13 @@ class FogOfWarChess:
                 start_row = 6 if player == WHITE else 1
                 if x == start_row and in_bounds(x + 2*direction, y) and self.board[x + 2*direction][y] is EMPTY:
                     moves.append((x + 2*direction, y))
-            
+        
+            # Double move from starting position (2 spaces)
+            start_row = 6 if player == WHITE else 1
+            if x == start_row:
+                if in_bounds(x + 2*direction, y) and self.board[x + 2*direction][y] is EMPTY:
+                    moves.append((x + 2*direction, y))
+
             # Captures
             for dy in [-1, 1]:
                 nx, ny = x + direction, y + dy
@@ -488,7 +494,7 @@ def play_fog_chess(debug=False):
         if move_input == "quit":
             print("Game has been ended by the player.")
             break
-        
+
         if len(move_input) != 4:
             print("Invalid format. Please enter moves like e2e4.")
             continue
