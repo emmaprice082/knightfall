@@ -40,6 +40,15 @@ PAWN_CAPTURES = {
     'black': [(1, -1), (1, 1)]     # down-left and down-right
 }
 
+# Symbols for each piece on the board
+PIECE_SYMBOLS = {
+        ('white', 'p'): '♙', ('white', 'r'): '♖', ('white', 'n'): '♘',
+        ('white', 'b'): '♗', ('white', 'q'): '♕', ('white', 'k'): '♔',
+        ('black', 'p'): '♟', ('black', 'r'): '♜', ('black', 'n'): '♞',
+        ('black', 'b'): '♝', ('black', 'q'): '♛', ('black', 'k'): '♚',
+        None: ' '
+}
+
 def in_bounds(x, y):
     """Check if a position is within the board bounds."""
     return 0 <= x < 8 and 0 <= y < 8
@@ -269,37 +278,59 @@ def create_masked_board(board, player_color, last_move=None):
     return masked_board
 
 def print_board(board, player_color=None):
-    """Print the current state of the board."""
-    pieces_symbols = {
-        ('white', 'p'): '♙', ('white', 'r'): '♖', ('white', 'n'): '♘',
-        ('white', 'b'): '♗', ('white', 'q'): '♕', ('white', 'k'): '♔',
-        ('black', 'p'): '♟', ('black', 'r'): '♜', ('black', 'n'): '♞',
-        ('black', 'b'): '♝', ('black', 'q'): '♛', ('black', 'k'): '♚',
-        None: ' '
-    }
+    if player_color == "black":
+        print_board_black(board)
+        return
+
+    print_board_white(board, player_color is not None)
+
+def print_board_white(board, is_player=False):
     
     # If player_color is specified, calculate visibility
     visible_squares = 0
-    if player_color:
-        visible_squares = get_visible_squares(board, player_color)
+    if is_player:
+        visible_squares = get_visible_squares(board, "white")
     
     print("  a b c d e f g h")
     print(" +-----------------+")
     for x in range(8):
         row_str = f"{8-x}|"
         for y in range(8):
-            if player_color and not (visible_squares & square_to_bit(x, y)):
+            if is_player and not (visible_squares & square_to_bit(x, y)):
                 row_str += "░"  # Fog symbol for non-visible squares
             else:
                 piece = board[x][y]
                 if piece:
-                    row_str += pieces_symbols[piece]
+                    row_str += PIECE_SYMBOLS[piece]
                 else:
                     row_str += " "
             row_str += " "
         print(row_str + f"|{8-x}")
     print(" +-----------------+")
     print("  a b c d e f g h")
+
+def print_board_black(board):
+
+    # If player_color is specified, calculate visibility
+    visible_squares = get_visible_squares(board, "black")
+
+    print("  h g f e d c b a")
+    print(" +-----------------+")
+    for x in range(7, -1, -1):
+        row_str = f"{8-x}|"
+        for y in range(7, -1, -1):
+            if not (visible_squares & square_to_bit(x, y)):
+                row_str += "░"  # Fog symbol for non-visible squares
+            else:
+                piece = board[x][y]
+                if piece:
+                    row_str += PIECE_SYMBOLS[piece]
+                else:
+                    row_str += " "
+            row_str += " "
+        print(row_str + f"|{8-x}")
+    print(" +-----------------+")
+    print("  h g f e d c b a")
 
 # Example usage:
 if __name__ == "__main__":
@@ -346,7 +377,7 @@ if __name__ == "__main__":
     # Test the masked board
     print("\nMasked board for white:")
     masked_board = create_masked_board(board, 'white')
-    print_board(masked_board)
+    print_board(masked_board, "white")
     
     # Test a capture
     board[5][2] = ('black', 'p')  # Add a black pawn that can be captured
@@ -368,6 +399,9 @@ if __name__ == "__main__":
         'to': (5, 2),
         'capture': True
     }
+
+    print("\nBoard before move:")
+    print_board(board)
     
     # Execute the move on the board
     board[5][2] = board[5][3]
@@ -378,4 +412,4 @@ if __name__ == "__main__":
     
     print("\nMasked board for white after capture:")
     masked_board = create_masked_board(board, 'white', last_move)
-    print_board(masked_board)
+    print_board(masked_board, "white")
