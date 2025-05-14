@@ -168,6 +168,9 @@ def verify_move(board, move, player_color):
     # The player must be able to see the destination square
     if not (visible_squares & to_square_bit):
         return False, False, False, "Destination square not visible"
+    
+    # Bool determine if the move captures another piece
+    is_capture = board[to_x][to_y] is not None and board[to_x][to_y][0] != player_color
 
     # General move validation for other pieces   
     # For our simplified example, assume the move is valid
@@ -192,13 +195,13 @@ def verify_move(board, move, player_color):
                 return True, True, False, "Valid pawn capture"
             else:
                 return False, False, False, "Invalid pawn capture (no opponent piece)"
+            
     # Check if the movement is valid
-    elif not check_movement(move, piece):
+    if not check_movement(board, move, piece, is_capture):
         return False, False, False, f"Invalid {get_piece_name(piece)} move"
         
     # Check for capture visibility
     capture_visible = False
-    is_capture = board[to_x][to_y] is not None and board[to_x][to_y][0] != player_color
     
     if is_capture:
         # A capture is visible if another piece (besides the capturing piece) can see the square
@@ -223,7 +226,7 @@ def verify_move(board, move, player_color):
     
     return True, capture_visible, promotion_visible, "Valid move"
 
-def check_movement(move, piece):
+def check_movement(board, move, piece, is_capture):
 
     horizontal_movement = abs(move["to"][1] - move["from"][1])
     vertical_movement = abs(move["to"][0] - move["from"][0])
@@ -245,19 +248,73 @@ def check_movement(move, piece):
     # Check piece type
     if piece[1] == "r":
         # Check that only one of the dimensions is changing
-        return straight
+        return straight and check_obstacles(board, get_intermediary_squares(board, move, 'straight'), is_capture)
     elif piece[1] == "q":
-        return straight or diagonal 
+        direction = 'straight' if straight else 'diagonal'
+        return (straight or diagonal) and check_obstacles(board, get_intermediary_squares(board, move, direction), is_capture)
     elif piece[1] == "b":
-        return diagonal
+        return diagonal and check_obstacles(board, get_intermediary_squares(board, move, 'diagonal'), is_capture)
     elif piece[1] == "k":
-        return straight or diagonal and total_squares_moved == 1
+        return straight or diagonal and total_squares_moved == 1 and check_obstacles(board, [(move['to'][0], move['to'][1])], is_capture)
     elif piece[1] == "n":
-        return knight_movement
+        return knight_movement and check_obstacles(board, [(move['to'][0], move['to'][1])], is_capture)
     elif piece[1] == "p":
-        # We check this elsewhere
-        return True
+        # We check that this is a valid move in verify_move
+        direction = 'straight' if straight else 'diagonal'
+        return check_obstacles(board, get_intermediary_squares(board, move, direction), is_capture)
+        
     return False
+
+
+
+def get_intermediary_squares(board, move, movement):
+    intermediary_squares = []
+
+    start = move['from']
+    end = move['to']
+
+    if movement == 'diagonal':
+        while start != end:
+            # Determine increment direction
+            if start[0] < end[0]:
+                start = (start[0]+1, start[1])
+            else:
+                start = (start[0]-1, start[1])
+
+            if start[1] < end[1]:
+                start = (start[0], start[1]+1)
+            else:
+                start = (start[0], start[1]-1)
+
+            intermediary_squares.append(start)
+    elif movement == 'straight':
+        # Vertical movement
+        if move['to'][0] != move['from'][0]:
+            while start != end:
+                if start[0] < end[0]:
+                    start = (start[0]+1, start[1])
+                else:
+                    start = (start[0]-1, start[1])
+                intermediary_squares.append(start)
+        else:
+            while start != end:
+                if start[1] < end[1]:
+                    start = (start[0], start[1]+1)
+                else:
+                    start = (start[0], start[1]-1)
+                intermediary_squares.append(start)
+
+    return intermediary_squares
+            
+def check_obstacles(board, intermediary_squares, is_capture):
+    if is_capture:
+        intermediary_squares = intermediary_squares[:-1]
+    
+    for square in intermediary_squares:
+        if board[square[0]][square[1]] is not None:
+            return False
+
+    return True
 
 def get_piece_name(piece):
     if piece[1] == "r":
@@ -468,6 +525,7 @@ if __name__ == "__main__":
     print_board(masked_board, "white")
 
     # Check a couple valid/invalid moves
+    test_board = [[None for _ in range(8)] for _ in range(8)]
     knight_piece = ('white', "n")
     rook_piece = ('white', 'r')
     bishop_piece = ('white', 'b')
@@ -495,11 +553,11 @@ if __name__ == "__main__":
         'to': (3, 3),    
     }
 
-    print(f"Result from valid knight move: {check_movement(valid_knight_move, knight_piece)}")
-    print(f"Result from valid bishop move: {check_movement(valid_bishop_move, bishop_piece)}")
-    print(f"Result from valid rook move: {check_movement(valid_rook_move, rook_piece)}")
-    print(f"Result from valid queen move: {check_movement(valid_queen_move, queen_piece)}")
-    print(f"Result from valid king move: {check_movement(valid_king_move, king_piece)}")
+    print(f"Result from valid knight move: {check_movement(test_board, valid_knight_move, knight_piece, False)}")
+    print(f"Result from valid bishop move: {check_movement(test_board, valid_bishop_move, bishop_piece, False)}")
+    print(f"Result from valid rook move: {check_movement(test_board, valid_rook_move, rook_piece, False)}")
+    print(f"Result from valid queen move: {check_movement(test_board, valid_queen_move, queen_piece, False)}")
+    print(f"Result from valid king move: {check_movement(test_board, valid_king_move, king_piece, False)}")
 
     invalid_knight_move = {
         'from': (5, 3),
@@ -522,8 +580,36 @@ if __name__ == "__main__":
         'to': (4, 5),    
     }
 
-    print(f"Result from invalid knight move: {check_movement(invalid_knight_move, knight_piece)}")
-    print(f"Result from invalid bishop move: {check_movement(invalid_bishop_move, bishop_piece)}")
-    print(f"Result from invalid rook move: {check_movement(invalid_rook_move, rook_piece)}")
-    print(f"Result from invalid queen move: {check_movement(invalid_queen_move, queen_piece)}")
-    print(f"Result from invalid king move: {check_movement(invalid_king_move, king_piece)}")
+    print(f"Result from invalid knight move: {check_movement(test_board, invalid_knight_move, knight_piece, False)}")
+    print(f"Result from invalid bishop move: {check_movement(test_board, invalid_bishop_move, bishop_piece, False)}")
+    print(f"Result from invalid rook move: {check_movement(test_board, invalid_rook_move, rook_piece, False)}")
+    print(f"Result from invalid queen move: {check_movement(test_board, invalid_queen_move, queen_piece, False)}")
+    print(f"Result from invalid king move: {check_movement(test_board, invalid_king_move, king_piece, False)}")
+
+    move1 = {
+        'from': (2, 3),  
+        'to': (5, 6),   
+    }
+    move2 = {
+        'from': (2, 3),  
+        'to': (2, 6),    
+    }
+    
+    # Test getting intermediary squares
+    get_intermediary_squares(test_board, move1, 'diagonal')
+    get_intermediary_squares(test_board, move2, 'straight')
+
+    # These checks just ensured that we omit the captured square from our obstacles
+    print(check_obstacles(test_board, [(2, 4), (2, 5), (2, 6)], False))
+    print(check_obstacles(test_board, [(2, 4), (2, 5), (2, 6)], True))
+
+    print("This check should pass")
+    test_board[2][6] = ('white', 'p')
+    print(check_obstacles(test_board, [(2, 4), (2, 5), (2, 6)], True))
+
+    # NOTE: This should fail
+    test_board[2][6] = None
+    test_board[2][5] = ('white', 'p')
+    print("This check should fail due to obstacles")
+    print(check_obstacles(test_board, [(2, 4), (2, 5), (2, 6)], False))
+
