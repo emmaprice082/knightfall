@@ -192,6 +192,9 @@ def verify_move(board, move, player_color):
                 return True, True, False, "Valid pawn capture"
             else:
                 return False, False, False, "Invalid pawn capture (no opponent piece)"
+    # Check if the movement is valid
+    elif not check_movement(move, piece):
+        return False, False, False, f"Invalid {get_piece_name(piece)} move"
         
     # Check for capture visibility
     capture_visible = False
@@ -220,6 +223,56 @@ def verify_move(board, move, player_color):
     
     return True, capture_visible, promotion_visible, "Valid move"
 
+def check_movement(move, piece):
+
+    horizontal_movement = abs(move["to"][1] - move["from"][1])
+    vertical_movement = abs(move["to"][0] - move["from"][0])
+    total_squares_moved = 0
+
+    # Get movement type
+    straight = horizontal_movement == 0 or vertical_movement == 0
+    diagonal = horizontal_movement == vertical_movement
+    knight_movement = (horizontal_movement == 1 and vertical_movement == 2) or (horizontal_movement == 2 and vertical_movement == 1)
+
+    if straight:
+        total_squares_moved = horizontal_movement + vertical_movement
+    # Default to eval horizontal movement for diagonal
+    elif diagonal:
+        total_squares_moved = horizontal_movement
+    elif knight_movement:
+        total_squares_moved = 3
+
+    # Check piece type
+    if piece[1] == "r":
+        # Check that only one of the dimensions is changing
+        return straight
+    elif piece[1] == "q":
+        return straight or diagonal 
+    elif piece[1] == "b":
+        return diagonal
+    elif piece[1] == "k":
+        return straight or diagonal and total_squares_moved == 1
+    elif piece[1] == "n":
+        return knight_movement
+    elif piece[1] == "p":
+        # We check this elsewhere
+        return True
+    return False
+
+def get_piece_name(piece):
+    if piece[1] == "r":
+        return "Rook"
+    elif piece[1] == "q":
+        return "Queen"
+    elif piece[1] == "b":
+        return "Bishop"
+    elif piece[1] == "k":
+        return "King"
+    elif piece[1] == "n":
+        return "Knight"
+    elif piece[1] == "p":
+        return "Pawn"
+    
 def create_masked_board(board, player_color, last_move=None):
     """
     Create a masked board for the player based on fog of war rules.
@@ -380,11 +433,11 @@ if __name__ == "__main__":
     print_board(masked_board, "white")
     
     # Test a capture
-    board[5][2] = ('black', 'p')  # Add a black pawn that can be captured
+    board[4][2] = ('black', 'p')  # Add a black pawn that can be captured
     
     capture_move = {
         'from': (5, 3),  # White bishop
-        'to': (5, 2),    # Capture black pawn
+        'to': (4, 2),    # Capture black pawn
     }
     
     # Verify the capture move
@@ -396,7 +449,7 @@ if __name__ == "__main__":
     # Create a masked board after the capture
     last_move = {
         'from': (5, 3),
-        'to': (5, 2),
+        'to': (4, 2),
         'capture': True
     }
 
@@ -404,7 +457,7 @@ if __name__ == "__main__":
     print_board(board)
     
     # Execute the move on the board
-    board[5][2] = board[5][3]
+    board[4][2] = board[5][3]
     board[5][3] = None
     
     print("\nBoard after capture:")
@@ -413,3 +466,64 @@ if __name__ == "__main__":
     print("\nMasked board for white after capture:")
     masked_board = create_masked_board(board, 'white', last_move)
     print_board(masked_board, "white")
+
+    # Check a couple valid/invalid moves
+    knight_piece = ('white', "n")
+    rook_piece = ('white', 'r')
+    bishop_piece = ('white', 'b')
+    king_piece = ('white', 'k')
+    queen_piece = ('white', 'q')
+
+    valid_knight_move = {
+        'from': (5, 3),
+        'to': (3, 2),    
+    }
+    valid_rook_move = {
+        'from': (5, 3),
+        'to': (0, 3),    
+    }
+    valid_bishop_move = {
+        'from': (1, 6),
+        'to': (4, 3),    
+    }
+    valid_queen_move = {
+        'from': (3, 3),
+        'to': (0, 0),    
+    }
+    valid_king_move = {
+        'from': (2, 3),
+        'to': (3, 3),    
+    }
+
+    print(f"Result from valid knight move: {check_movement(valid_knight_move, knight_piece)}")
+    print(f"Result from valid bishop move: {check_movement(valid_bishop_move, bishop_piece)}")
+    print(f"Result from valid rook move: {check_movement(valid_rook_move, rook_piece)}")
+    print(f"Result from valid queen move: {check_movement(valid_queen_move, queen_piece)}")
+    print(f"Result from valid king move: {check_movement(valid_king_move, king_piece)}")
+
+    invalid_knight_move = {
+        'from': (5, 3),
+        'to': (3, 1),    
+    }
+    invalid_rook_move = {
+        'from': (5, 3),
+        'to': (4, 2),    
+    }
+    invalid_bishop_move = {
+        'from': (1, 6),
+        'to': (1, 3),    
+    }
+    invalid_queen_move = {
+        'from': (3, 3),
+        'to': (1, 0),    
+    }
+    invalid_king_move = {
+        'from': (2, 3),
+        'to': (4, 5),    
+    }
+
+    print(f"Result from invalid knight move: {check_movement(invalid_knight_move, knight_piece)}")
+    print(f"Result from invalid bishop move: {check_movement(invalid_bishop_move, bishop_piece)}")
+    print(f"Result from invalid rook move: {check_movement(invalid_rook_move, rook_piece)}")
+    print(f"Result from invalid queen move: {check_movement(invalid_queen_move, queen_piece)}")
+    print(f"Result from invalid king move: {check_movement(invalid_king_move, king_piece)}")
