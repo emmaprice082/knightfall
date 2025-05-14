@@ -8,6 +8,7 @@ import argparse
 import copy
 import random
 import time
+import json
 
 from verify import (
     get_visible_squares, 
@@ -513,11 +514,11 @@ def play_fog_chess(white, black, debug=False):
             print("Invalid move. Try again.")
 
     winner_address = white if game.winner == WHITE else black
-    print(f"\nWinner: {game.winner}: {winner_address}")
+    # print(f"\nWinner: {game.winner}: {winner_address}")
 
     print("\nGame over.")
 
-    return {"winner": winner_address}
+    print(json.dumps({"winner_address": winner_address}))
 
 
 if __name__ == "__main__":
