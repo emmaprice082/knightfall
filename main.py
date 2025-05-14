@@ -474,7 +474,7 @@ def play_ai(debug=False):
         print(f"Game over! {game.winner.capitalize()} wins!")
 
 
-def play_fog_chess(debug=False):
+def play_fog_chess(white, black, debug=False):
     game = FogOfWarChess()
     print("Welcome to Fog of War Chess!")
     print("Enter moves in algebraic notation, e.g., e2e4")
@@ -512,7 +512,12 @@ def play_fog_chess(debug=False):
         if not success:
             print("Invalid move. Try again.")
 
+    winner_address = white if game.winner == WHITE else black
+    print(f"\nWinner: {game.winner}: {winner_address}")
+
     print("\nGame over.")
+
+    return {"winner": winner_address}
 
 
 if __name__ == "__main__":
@@ -526,9 +531,16 @@ if __name__ == "__main__":
 
     parser.add_argument('--debug', action='store_true', help="Enable debug mode")
 
+    # Optional args that become required with --two
+    parser.add_argument('--white', type=str, help="Address of player 1")
+    parser.add_argument('--black', type=str, help="Address of player 2")
+
     args = parser.parse_args()
 
     if args.ai:
         play_ai(debug=args.debug)
     elif args.two:
-        play_fog_chess()
+        if not args.white or not args.black:
+            parser.error("--two requires --white and --black")
+
+        play_fog_chess(args.white, args.black)
