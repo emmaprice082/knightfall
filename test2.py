@@ -1,5 +1,6 @@
 # test - quick checkmate
 from main import FogOfWarChess, WHITE, BLACK  # make sure WHITE and BLACK are exported from main.py
+from verify import write_board_white
 import argparse
 import json
 
@@ -31,6 +32,7 @@ def test_fools_mate_white():
     game.make_move(move_4)
     print("After Black's move: d8h4 (Checkmate!)")
     game.display_board(player=BLACK)
+    write_board_white(game.board)
 
 def test_fools_mate_black():
     # Initialize the game board
@@ -84,5 +86,5 @@ if __name__ == "__main__":
             parser.error("--two requires white and black addresses as args")
         white_addr, black_addr = args.players
 
-    test_fools_mate_white()
+    game = test_fools_mate_white()
     print(json.dumps({"winner_address": black_addr, "loser_address": white_addr}))
