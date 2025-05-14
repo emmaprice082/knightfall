@@ -533,15 +533,15 @@ if __name__ == "__main__":
     parser.add_argument('--debug', action='store_true', help="Enable debug mode")
 
     # Optional args that become required with --two
-    parser.add_argument('--white', type=str, help="Address of player 1")
-    parser.add_argument('--black', type=str, help="Address of player 2")
+    parser.add_argument('players', nargs='*', help="Addresses of white and black")
 
     args = parser.parse_args()
 
     if args.ai:
         play_ai(debug=args.debug)
     elif args.two:
-        if not args.white or not args.black:
+        if len(args.players) != 2:
             parser.error("--two requires --white and --black")
+        white_addr, black_addr = args.players
 
-        play_fog_chess(args.white, args.black)
+        play_fog_chess(white_addr, black_addr)

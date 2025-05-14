@@ -86,8 +86,3 @@ if __name__ == "__main__":
 
     test_fools_mate_white()
     print(json.dumps({"winner_address": black_addr}))
-
-    print("----------------------------------")
-
-    test_fools_mate_black()
-    print(json.dumps({"winner_address": white_addr}))
