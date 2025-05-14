@@ -66,17 +66,17 @@ class FogOfWarChess:
             
         return board
     
-    def display_board(self, player=None, debug=False):
+    def display_board(self, player=None, is_ai=False):
         """
         Display the current board state with fog of war if player is specified.
         
         Parameters:
         - player: The player whose perspective to show ('white' or 'black')
-        - debug: Whether to show additional debug information
+        - is_ai: Whether to black's pieces when it is their move (if AI, don't print)
         """
-        # In non-debug mode, only show White's view or the full board
-        
-        if player == BLACK and not debug:
+
+        # In non-ai mode, only show White's view or the full board
+        if player == BLACK and is_ai:
             return
             
         if player:
@@ -434,7 +434,7 @@ def play_ai(debug=False):
     # Main game loop
     while not game.game_over:
         # Display the board from the current player's perspective
-        game.display_board(game.current_player, debug=debug)
+        game.display_board(game.current_player, (game.current_player == BLACK))
         
         if game.current_player == WHITE:
             # Human player's turn
