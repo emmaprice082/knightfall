@@ -85,4 +85,4 @@ if __name__ == "__main__":
         white_addr, black_addr = args.players
 
     test_fools_mate_white()
-    print(json.dumps({"winner_address": black_addr}))
+    print(json.dumps({"winner_address": black_addr, "loser_address": white_addr}))

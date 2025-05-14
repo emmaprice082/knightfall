@@ -514,11 +514,11 @@ def play_fog_chess(white, black, debug=False):
             print("Invalid move. Try again.")
 
     winner_address = white if game.winner == WHITE else black
-    # print(f"\nWinner: {game.winner}: {winner_address}")
+    loser_address = black if winner_address is white else white
 
     print("\nGame over.")
 
-    print(json.dumps({"winner_address": winner_address}))
+    print(json.dumps({"winner_address": winner_address, "loser_address": loser_address}))
 
 
 if __name__ == "__main__":
