@@ -390,9 +390,11 @@ def create_masked_board(board, player_color, last_move=None):
 def print_board(board, player_color=None):
     if player_color == "black":
         print_board_black(board)
+        write_board_black(board)
         return
 
     print_board_white(board, player_color is not None)
+    write_board_white(board, player_color is not None)
 
 def print_board_white(board, is_player=False):
     
@@ -441,6 +443,60 @@ def print_board_black(board):
         print(row_str + f"|{8-x}")
     print(" +-----------------+")
     print("  h g f e d c b a")
+
+def write_board_white(board, is_player=False):
+    
+    with open('.white.board', 'w') as f:
+
+        # If player_color is specified, calculate visibility
+        visible_squares = 0
+        if is_player:
+            visible_squares = get_visible_squares(board, "white")
+        
+        f.write("  a b c d e f g h\n")
+        f.write(" +-----------------+\n")
+        for x in range(8):
+            row_str = f"{8-x}|"
+            for y in range(8):
+                if is_player and not (visible_squares & square_to_bit(x, y)):
+                    row_str += "░"  # Fog symbol for non-visible squares
+                else:
+                    piece = board[x][y]
+                    if piece:
+                        row_str += PIECE_SYMBOLS[piece]
+                    else:
+                        row_str += " "
+                row_str += " "
+            f.write(row_str + f"|{8-x}\n")
+        f.write(" +-----------------+\n")
+        f.write("  a b c d e f g h\n")
+
+
+def write_board_black(board, is_player=False):
+
+    with open('.black.board', 'w') as f:
+
+        # If player_color is specified, calculate visibility
+        visible_squares = get_visible_squares(board, "black")
+
+        print("  h g f e d c b a\n")
+        print(" +-----------------+\n")
+        for x in range(7, -1, -1):
+            row_str = f"{8-x}|"
+            for y in range(7, -1, -1):
+                if not (visible_squares & square_to_bit(x, y)):
+                    row_str += "░"  # Fog symbol for non-visible squares
+                else:
+                    piece = board[x][y]
+                    if piece:
+                        row_str += PIECE_SYMBOLS[piece]
+                    else:
+                        row_str += " "
+                row_str += " "
+            print(row_str + f"|{8-x}\n")
+        print(" +-----------------+\n")
+        print("  h g f e d c b a\n")
+
 
 # Example usage:
 if __name__ == "__main__":
