@@ -241,16 +241,30 @@ class GameState:
         print(f"Moves: {self.move_count}")
     
     def square_from_algebraic(self, algebraic: str) -> int:
-        """Convert algebraic notation (e.g., 'e4') to square index (0-63)"""
+        """Convert algebraic notation (e.g., 'e4') to square index (0-63)
+        
+        Board layout:
+        - Square 0 = a8 (rank 8, top-left from white's perspective)
+        - Square 63 = h1 (rank 1, bottom-right)
+        - Rank 1 (white's back rank) = squares 56-63
+        - Rank 8 (black's back rank) = squares 0-7
+        """
         col = ord(algebraic[0].lower()) - ord('a')
-        row = int(algebraic[1]) - 1
+        rank = int(algebraic[1])  # 1-8
+        row = 8 - rank  # Invert: rank 1 → row 7, rank 8 → row 0
         return row * 8 + col
     
     def square_to_algebraic(self, square: int) -> str:
-        """Convert square index (0-63) to algebraic notation"""
+        """Convert square index (0-63) to algebraic notation
+        
+        Board layout:
+        - Square 0 = a8, Square 63 = h1
+        - Row 0 = rank 8, Row 7 = rank 1
+        """
         row = square // 8
         col = square % 8
-        return chr(ord('a') + col) + str(row + 1)
+        rank = 8 - row  # Invert: row 0 → rank 8, row 7 → rank 1
+        return chr(ord('a') + col) + str(rank)
 
 
 if __name__ == "__main__":
