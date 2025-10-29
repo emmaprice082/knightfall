@@ -54,6 +54,7 @@ leo build
 ```
 
 Both should compile successfully:
+
 - `knightfall_logic.aleo`: 12KB ✅
 - `knightfall_game.aleo`: 6.8KB ✅
 
@@ -74,7 +75,7 @@ leo run test_move_validation 0u8
 def validate_move(self, game: GameState, from_square: int, to_square: int) -> bool:
     # Currently: Python placeholder
     # TODO: Call Leo via subprocess
-    
+
     # Would execute:
     # leo run validate_move_wrapper board1 board2 from to is_white
     pass
@@ -101,11 +102,11 @@ transition validate_move_wrapper(
 ```python
 def validate_move(self, game: GameState, from_square: int, to_square: int) -> bool:
     board1, board2 = game.get_board_for_leo()
-    
+
     # Format Leo arguments
     b1_str = self._format_array_for_leo(board1)
     b2_str = self._format_array_for_leo(board2)
-    
+
     # Call Leo
     result = subprocess.run(
         [
@@ -118,11 +119,11 @@ def validate_move(self, game: GameState, from_square: int, to_square: int) -> bo
         capture_output=True,
         text=True
     )
-    
+
     # Parse output
     output = result.stdout
     is_valid = "true" in output.lower()
-    
+
     return is_valid
 ```
 
@@ -264,7 +265,7 @@ success = manager.make_move_algebraic("e2", "e4")
 if success:
     # Show board with fog
     manager.show_board(with_fog=True)
-    
+
     # Get move history
     history = manager.get_move_history()
     print(f"Moves: {history}")
@@ -283,10 +284,10 @@ game = GameState()
 if leo.validate_move(game, 52, 36):  # e2 to e4
     # 2. Execute move
     game.make_move(52, 36)
-    
+
     # 3. Calculate visibility for opponent
     visibility = leo.calculate_visibility(game, for_white=False)
-    
+
     # 4. Display with fog
     game.print_board(visibility)
 ```
@@ -299,10 +300,10 @@ import os
 
 def call_leo_function(program_path, function_name, args):
     """Generic Leo function caller"""
-    
+
     # Build command
     cmd = ["leo", "run", function_name] + args
-    
+
     # Execute
     result = subprocess.run(
         cmd,
@@ -311,11 +312,11 @@ def call_leo_function(program_path, function_name, args):
         text=True,
         timeout=30
     )
-    
+
     # Check for errors
     if result.returncode != 0:
         raise Exception(f"Leo error: {result.stderr}")
-    
+
     # Parse output
     return parse_leo_output(result.stdout)
 
@@ -425,7 +426,7 @@ def test_move_execution():
     game = GameState()
     initial_piece = game.get_piece(52)  # e2
     assert initial_piece == 11  # white pawn
-    
+
     game.make_move(52, 36)  # e2 to e4
     assert game.get_piece(52) == 0  # e2 now empty
     assert game.get_piece(36) == 11  # e4 has white pawn
@@ -434,7 +435,7 @@ def test_move_execution():
 def test_castling_rights():
     game = GameState()
     assert not game.castling_rights.white_king_moved
-    
+
     game.make_move(60, 61)  # King e1 to f1
     assert game.castling_rights.white_king_moved
 ```
@@ -446,10 +447,10 @@ def test_castling_rights():
 def test_validate_move_with_leo():
     leo = LeoInterface()
     game = GameState()
-    
+
     # Valid pawn move
     assert leo.validate_move(game, 52, 36)  # e2 to e4
-    
+
     # Invalid move
     assert not leo.validate_move(game, 52, 28)  # e2 to e5 (too far)
 ```
@@ -461,34 +462,37 @@ def test_validate_move_with_leo():
 def test_full_game():
     manager = GameManager()
     manager.start_new_game()
-    
+
     # Play a short game
     moves = [
         ("e2", "e4"), ("e7", "e5"),
         ("g1", "f3"), ("b8", "c6"),
         ("f1", "b5")  # Spanish opening
     ]
-    
+
     for from_sq, to_sq in moves:
         assert manager.make_move_algebraic(from_sq, to_sq)
-    
+
     assert len(manager.game.move_history) == 5
 ```
 
 ## 🚀 Next Steps
 
 1. **Immediate** (Python-only mode works):
+
    - ✅ Play games locally
    - ✅ Test game logic
    - ✅ Develop strategies
 
 2. **Short-term** (Add Leo CLI):
+
    - Add transition wrappers
    - Implement subprocess calls
    - Test integration
    - Measure performance
 
 3. **Medium-term** (Testnet deployment):
+
    - Deploy programs to testnet
    - Test on-chain execution
    - Optimize gas costs
@@ -503,14 +507,17 @@ def test_full_game():
 ## 📞 Support
 
 **For Python frontend:**
+
 - File: `/Users/emmaprice/code/knightfall/PYTHON_FRONTEND_README.md`
 - Test: `python3 play_game.py`
 
 **For Leo programs:**
+
 - File: `/Users/emmaprice/code/knightfall-aleo/README.md`
 - Build: `cd knightfall_logic && leo build`
 
 **Integration issues:**
+
 - Check this file
 - Test each layer independently
 - Verify Leo programs compile
@@ -519,4 +526,3 @@ def test_full_game():
 ---
 
 **Ready to integrate? Start with Phase 2: Add transition wrappers to Leo programs!** 🚀
-

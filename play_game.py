@@ -21,7 +21,7 @@ def print_help():
 ║            KNIGHTFALL - Fog of War Chess                   ║
 ╠════════════════════════════════════════════════════════════╣
 ║ Commands:                                                  ║
-║   move <from> <to>  - Make a move (e.g., 'move e2 e4')   ║
+║   move <from> <to>  - Make a move (e.g., 'move e2 e4')     ║
 ║   show              - Show current board                   ║
 ║   fog               - Show board with fog of war           ║
 ║   history           - Show move history                    ║
@@ -29,15 +29,15 @@ def print_help():
 ║   quit              - Exit the game                        ║
 ║                                                            ║
 ║ Notation:                                                  ║
-║   Squares: a1-h8 (e.g., e2, e4, g1, f3)                  ║
+║   Squares: a1-h8 (e.g., e2, e4, g1, f3)                    ║
 ║                                                            ║
 ║ Features:                                                  ║
-║   ✓ All chess piece movements                             ║
-║   ✓ Check/checkmate detection                             ║
-║   ✓ Castling                                              ║
-║   ✓ En passant                                            ║
-║   ✓ Move history tracking                                 ║
-║   ✓ Fog of war visibility                                 ║
+║   ✓ All chess piece movements                              ║
+║   ✓ Check/checkmate detection                              ║
+║   ✓ Castling                                               ║ 
+║   ✓ En passant                                             ║
+║   ✓ Move history tracking                                  ║
+║   ✓ Fog of war visibility                                  ║
 ╚════════════════════════════════════════════════════════════╝
     """)
 
