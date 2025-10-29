@@ -14,6 +14,7 @@ python3 play_game.py
 ```
 
 **Commands:**
+
 ```
 move <from> <to>  - Make a move (e.g., 'move e2 e4')
 show              - Show current board
@@ -57,6 +58,7 @@ knightfall/
 ## ✨ Features
 
 **Implemented:**
+
 - ✅ All chess piece movements
 - ✅ Check/checkmate detection
 - ✅ Castling (full validation)
@@ -67,6 +69,7 @@ knightfall/
 - ✅ Leo integration framework
 
 **Coming Soon:**
+
 - ⏳ Leo CLI subprocess calls
 - ⏳ On-chain move validation
 - ⏳ Network multiplayer
@@ -104,6 +107,7 @@ game.print_board(visibility_bitboard)  # With fog
 ```
 
 **Features:**
+
 - Board representation (board1/board2 arrays)
 - Castling rights tracking
 - Move history recording
@@ -132,6 +136,7 @@ history = manager.get_move_history()
 ```
 
 **Features:**
+
 - Move validation (via Leo)
 - En passant detection (via Leo)
 - Visibility calculation (via Leo)
@@ -147,6 +152,7 @@ python3 play_game.py
 ```
 
 **Features:**
+
 - Move input with validation
 - Fog of war visualization
 - Move history
@@ -182,6 +188,7 @@ GameState         LeoInterface
 ```
 
 **Current State:**
+
 - Python manages game state locally (fast, responsive)
 - Leo integration ready (placeholders for subprocess calls)
 - Framework complete for network deployment
@@ -189,18 +196,21 @@ GameState         LeoInterface
 ## 🔄 Integration Status
 
 **✅ Phase 1: Local Development (COMPLETE)**
+
 - Python game state manager
 - Leo integration framework
 - Interactive CLI game
 - Complete documentation
 
 **⏳ Phase 2: Leo CLI Integration (NEXT)**
+
 - Add transition wrappers to Leo programs
 - Implement subprocess calls
 - Parse Leo output
 - See: `INTEGRATION_GUIDE.md`
 
 **📋 Phase 3: Network Deployment (FUTURE)**
+
 - Deploy to testnet/mainnet
 - Multiplayer matchmaking
 - Wager system
@@ -230,6 +240,7 @@ python3 play_game.py
 ## 📊 Data Structures
 
 **Piece Encoding:**
+
 ```
 Empty: 0
 Black: 1-6  (pawn=1, rook=2, knight=3, bishop=4, queen=5, king=6)
@@ -237,6 +248,7 @@ White: 11-16 (pawn=11, rook=12, knight=13, bishop=14, queen=15, king=16)
 ```
 
 **Square Indexing:**
+
 ```
 Square 0 = a8 (top-left)
 Square 63 = h1 (bottom-right)
@@ -244,6 +256,7 @@ square = row * 8 + col (0-63)
 ```
 
 **Visibility Bitboard:**
+
 ```
 u64 bitboard: 64-bit integer
 Bit i = 1 → square i is visible
@@ -289,12 +302,14 @@ MIT License - see LICENSE file for details
 ## 📞 Support
 
 **Issues?**
+
 1. Check documentation files
 2. Review Python examples
 3. Test basic functionality
 4. Open GitHub issue
 
 **Questions?**
+
 - See `PYTHON_FRONTEND_README.md` for API docs
 - See `INTEGRATION_GUIDE.md` for Leo integration
 - See `../knightfall-aleo/README.md` for Leo docs
