@@ -53,6 +53,12 @@ class GameState:
         self.white_player: str = white_player
         self.black_player: str = black_player
         
+        # ELO Ratings
+        # TODO: Import player ELO from persistent storage/database in the future
+        # For now, all new players start at 1200 (standard starting ELO)
+        self.white_elo: int = 1200  # Starting ELO
+        self.black_elo: int = 1200  # Starting ELO
+        
         # Move tracking (for castling and verification)
         self.castling_rights = CastlingRights()
         self.move_count: int = 0
@@ -71,18 +77,20 @@ class GameState:
     def _init_standard_position(self):
         """Initialize the board to standard chess starting position"""
         # Black back rank (squares 0-7): r n b q k b n r
-        self.board1[0:8] = [2, 3, 4, 5, 6, 4, 3, 2]
+        # Black pieces: 7=pawn, 8=knight, 9=bishop, 10=rook, 11=queen, 12=king
+        self.board1[0:8] = [10, 8, 9, 11, 12, 9, 8, 10]
         # Black pawns (squares 8-15)
-        self.board1[8:16] = [1] * 8
+        self.board1[8:16] = [7] * 8
         # Empty squares (16-31)
         self.board1[16:32] = [0] * 16
         
         # Empty squares (32-47)
         self.board2[0:16] = [0] * 16
+        # White pieces: 1=pawn, 2=knight, 3=bishop, 4=rook, 5=queen, 6=king
         # White pawns (squares 48-55)
-        self.board2[16:24] = [11] * 8
+        self.board2[16:24] = [1] * 8
         # White back rank (squares 56-63): R N B Q K B N R
-        self.board2[24:32] = [12, 13, 14, 15, 16, 14, 13, 12]
+        self.board2[24:32] = [4, 2, 3, 5, 6, 3, 2, 4]
     
     def get_piece(self, square: int) -> int:
         """Get piece at a square (0-63)"""
