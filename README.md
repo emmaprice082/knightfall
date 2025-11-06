@@ -80,6 +80,8 @@ knightfall/
 
 - **[PYTHON_FRONTEND_README.md](./PYTHON_FRONTEND_README.md)** - Complete Python API documentation
 - **[INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md)** - Leo integration guide with code examples
+- **[LEO_ARCHITECTURE.md](./LEO_ARCHITECTURE.md)** - Hybrid Leo/Python architecture decisions
+- **[LEO_INTEGRATION_STATUS.md](./LEO_INTEGRATION_STATUS.md)** - 🆕 Current Leo usage & future roadmap
 - **[../knightfall-aleo/README.md](../knightfall-aleo/README.md)** - Leo smart contracts documentation
 - **[../knightfall-aleo/DEPLOYMENT.md](../knightfall-aleo/DEPLOYMENT.md)** - Production deployment guide
 
