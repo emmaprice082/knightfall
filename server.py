@@ -108,18 +108,14 @@ class GameRoom:
             print(f"[SERVER MOVE] ERROR: Not your piece!", flush=True)
             return {'success': False, 'error': 'Not your piece'}
         
-        # VALIDATE MOVE IN LEO (this is the key change!)
-        # Leo validates: piece movement rules, path blocking, check/checkmate rules
+        # VALIDATE MOVE IN LEO
+        # Leo validates: piece movement rules, path blocking
+        # NOTE: In Fog of War chess, there is NO check/checkmate!
         print(f"[SERVER MOVE] Calling Leo validation...", flush=True)
-        
-        # Check if king is currently in check (for debugging)
-        is_white_turn = self.game.is_white_turn
-        king_in_check_before = self.leo_python.is_in_check(self.game, is_white_turn)
-        print(f"[SERVER MOVE] King in check before move: {king_in_check_before}", flush=True)
         
         if not self.leo_cli.validate_move_leo(self.game, from_square, to_square):
             print(f"[SERVER MOVE] ERROR: Leo validation failed!", flush=True)
-            print(f"[SERVER MOVE] Possible reasons: invalid piece move, blocked path, or leaves king in check", flush=True)
+            print(f"[SERVER MOVE] Possible reasons: invalid piece move or blocked path", flush=True)
             return {'success': False, 'error': 'Invalid move (Leo validation failed)'}
         
         print(f"[SERVER MOVE] Leo validation passed! Executing move...", flush=True)
@@ -132,26 +128,34 @@ class GameRoom:
         print(f"[SERVER MOVE] Move execution: {'SUCCESS' if success else 'FAILED'}", flush=True)
         
         if success:
-            # CRITICAL: Check if a king was captured (this should never happen in proper chess,
-            # but serves as a failsafe if checkmate detection fails)
+            # CRITICAL: Check if a king was captured
+            # This is the ONLY win condition in Fog of War chess
             white_king_exists = False
             black_king_exists = False
+            white_king_square = -1
+            black_king_square = -1
             for sq in range(64):
                 p = self.game.get_piece(sq)
                 if p == 6:  # White king
                     white_king_exists = True
+                    white_king_square = sq
                 elif p == 12:  # Black king
                     black_king_exists = True
+                    black_king_square = sq
+            
+            print(f"[SERVER MOVE] Kings: White at {white_king_square}, Black at {black_king_square}", flush=True)
             
             if not white_king_exists or not black_king_exists:
                 # A king was captured - game over immediately!
+                # This is the ONLY win condition in Fog of War chess
                 game_over = True
                 winner = 1 if white_king_exists else 2  # Winner is whoever still has their king
                 print(f"[SERVER MOVE] 👑 KING CAPTURED! Game over, winner={winner}", flush=True)
             else:
-                # Check for game over (checkmate/stalemate detection)
-                print(f"[SERVER MOVE] Checking for game over...", flush=True)
-                game_over, winner = self.leo_cli.check_game_over_leo(self.game)
+                # FOG OF WAR CHESS: No checkmate detection!
+                # Game continues until a king is captured
+                game_over = False
+                winner = 0
             print(f"[SERVER MOVE] Game over check: game_over={game_over}, winner={winner}", flush=True)
             
             if game_over:

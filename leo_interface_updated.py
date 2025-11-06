@@ -93,18 +93,10 @@ class LeoInterface:
             if not self._validate_piece_move(game, from_square, to_square, piece):
                 return False
             
-            # Check if move leaves king in check (simulate move)
-            captured = game.get_piece(to_square)
-            game.set_piece(from_square, 0)
-            game.set_piece(to_square, piece)
-            
-            in_check_after = self.is_in_check(game, is_white_piece)
-            
-            # Undo move
-            game.set_piece(from_square, piece)
-            game.set_piece(to_square, captured)
-            
-            return not in_check_after
+            # FOG OF WAR CHESS: No check/checkmate!
+            # Players CAN move their king into danger - that's part of the game!
+            # The ONLY win condition is capturing the enemy king
+            return True
             
         except Exception as e:
             print(f"[Leo Interface] Error validating move: {e}")
