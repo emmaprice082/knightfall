@@ -42,6 +42,32 @@
               <strong>ELO Rating:</strong> <span id="player-elo">1200</span>
             </p>
           </div>
+
+          <!-- Wallet Section -->
+          <div class="wallet-section">
+            <div id="wallet-disconnected">
+              <button id="connect-wallet-btn" class="btn btn-wallet">
+                Connect Shield Wallet
+              </button>
+              <p class="wallet-hint">Optional: connect to wager ALEO on games</p>
+            </div>
+            <div id="wallet-connected" style="display: none">
+              <div class="wallet-status">
+                <span class="wallet-icon">🛡️</span>
+                <span id="wallet-address" class="wallet-address"></span>
+                <button id="disconnect-wallet-btn" class="btn btn-wallet-disconnect">
+                  Disconnect
+                </button>
+              </div>
+              <div class="wager-section">
+                <label for="wager-toggle">
+                  <input type="checkbox" id="wager-toggle" />
+                  Wager 1 ALEO on this game
+                </label>
+              </div>
+            </div>
+          </div>
+
           <button id="find-game-btn" class="btn btn-primary">Find Game</button>
           <button
             id="cancel-search-btn"
@@ -117,6 +143,7 @@
     <!-- Scripts -->
     <script src="{{ url_for('static', filename='js/chess-pieces.js') }}"></script>
     <script src="{{ url_for('static', filename='js/board-themes.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/wallet.js') }}"></script>
     <script src="{{ url_for('static', filename='js/game.js') }}"></script>
   </body>
 </html>

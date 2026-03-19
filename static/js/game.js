@@ -150,6 +150,9 @@ class KnightfallGame {
         }
       });
 
+    // Wallet
+    this.setupWalletListeners();
+
     // Matchmaking
     document.getElementById("find-game-btn").addEventListener("click", () => {
       this.findGame();
@@ -182,14 +185,126 @@ class KnightfallGame {
     });
   }
 
+  // ─── Wallet ──────────────────────────────────────────────────────────────
+
+  setupWalletListeners() {
+    const connectBtn = document.getElementById("connect-wallet-btn");
+    const disconnectBtn = document.getElementById("disconnect-wallet-btn");
+
+    if (connectBtn) {
+      connectBtn.addEventListener("click", () => this.connectWallet());
+    }
+    if (disconnectBtn) {
+      disconnectBtn.addEventListener("click", () => this.disconnectWallet());
+    }
+
+    // Reflect wallet state if already connected (e.g. after page re-render)
+    if (window.shieldWallet && window.shieldWallet.isConnected()) {
+      this.updateWalletUI(window.shieldWallet.getAddress());
+    }
+  }
+
+  async connectWallet() {
+    if (!window.shieldWallet) return;
+
+    const btn = document.getElementById("connect-wallet-btn");
+    if (btn) {
+      btn.textContent = "Connecting…";
+      btn.disabled = true;
+    }
+
+    try {
+      const account = await window.shieldWallet.connect();
+      this.updateWalletUI(account.address);
+    } catch (err) {
+      this.showMessage(err.message, "error");
+      if (btn) {
+        btn.textContent = "Connect Shield Wallet";
+        btn.disabled = false;
+      }
+    }
+  }
+
+  async disconnectWallet() {
+    if (!window.shieldWallet) return;
+    await window.shieldWallet.disconnect();
+    this.updateWalletUI(null);
+  }
+
+  updateWalletUI(address) {
+    const disconnectedEl = document.getElementById("wallet-disconnected");
+    const connectedEl = document.getElementById("wallet-connected");
+    const addressEl = document.getElementById("wallet-address");
+    const connectBtn = document.getElementById("connect-wallet-btn");
+
+    if (address) {
+      if (disconnectedEl) disconnectedEl.style.display = "none";
+      if (connectedEl) connectedEl.style.display = "block";
+      if (addressEl) {
+        addressEl.textContent = window.shieldWallet.formatAddress(address);
+        addressEl.title = address;
+      }
+    } else {
+      if (disconnectedEl) disconnectedEl.style.display = "block";
+      if (connectedEl) connectedEl.style.display = "none";
+      if (connectBtn) {
+        connectBtn.textContent = "Connect Shield Wallet";
+        connectBtn.disabled = false;
+      }
+    }
+  }
+
+  isWagerEnabled() {
+    const toggle = document.getElementById("wager-toggle");
+    return toggle && toggle.checked && window.shieldWallet && window.shieldWallet.isConnected();
+  }
+
+  // ─── Registration / Matchmaking ──────────────────────────────────────────
+
   register(username) {
     console.log("[Client] Registering:", username);
     this.socket.emit("register", { username });
   }
 
-  findGame() {
+  async findGame() {
     console.log("[Client] Finding game...");
-    this.socket.emit("find_game", {});
+
+    // If the player opted to wager, lock the stake before searching
+    if (this.isWagerEnabled()) {
+      const statusEl = document.getElementById("lobby-status");
+      if (statusEl) {
+        statusEl.textContent = "Submitting wager transaction…";
+        statusEl.classList.add("wallet-pending");
+      }
+
+      try {
+        // We don't know the opponent address yet, so we use the program address
+        // as a placeholder — the server will reconcile via create_game later.
+        const programAddress = "aleo1vcg3xac7ssx2lx6x4ypcnyv53n0yntqcd5p4l6kravajtlnh5cysryyya3";
+        const txId = await window.shieldWallet.collectStake(programAddress);
+
+        if (statusEl) statusEl.textContent = "Waiting for confirmation…";
+
+        await window.shieldWallet.waitForTransaction(txId);
+
+        if (statusEl) {
+          statusEl.textContent = "Wager confirmed! Searching for opponent…";
+          statusEl.classList.remove("wallet-pending");
+        }
+
+        this.socket.emit("find_game", { wager_tx: txId });
+      } catch (err) {
+        console.error("[Client] Wager failed:", err);
+        this.showMessage(`Wager failed: ${err.message}`, "error");
+        if (statusEl) {
+          statusEl.textContent = "";
+          statusEl.classList.remove("wallet-pending");
+        }
+        return;
+      }
+    } else {
+      this.socket.emit("find_game", {});
+    }
   }
 
   cancelSearch() {
