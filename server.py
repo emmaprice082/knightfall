@@ -103,6 +103,9 @@ class GameRoom:
         # Session IDs for pending payout claims: color -> session_id
         self.session_ids = {}
 
+        # Aleo addresses for on-chain leaderboard recording: color -> address
+        self.player_addresses = {}
+
     def process_payouts(self, winner: int):
         """
         Send ALEO from the custodial wallet based on wager state.
@@ -146,6 +149,12 @@ class GameRoom:
         else:
             color = 'white' if white_wagered else 'black'
             pay(color, self.wagers[color]['amount'])
+
+        # Record game to on-chain leaderboard if both players have Aleo addresses
+        white_addr = self.player_addresses.get('white')
+        black_addr = self.player_addresses.get('black')
+        if white_addr and black_addr:
+            self.leo_cli.record_game_leaderboard(white_addr, black_addr, winner)
     
     def get_game_state(self, player_side: Optional[str] = None) -> dict:
         """Get game state with fog of war for specific player"""
@@ -424,6 +433,26 @@ def handle_find_game(data):
         # Record session IDs so pending payouts can be claimed later
         game_room.session_ids['white'] = session_id
         game_room.session_ids['black'] = opponent_id
+
+        # Store Aleo addresses for leaderboard recording at game end
+        if player_info.get('aleo_address'):
+            game_room.player_addresses['white'] = player_info['aleo_address']
+        if opponent_info.get('aleo_address'):
+            game_room.player_addresses['black'] = opponent_info['aleo_address']
+
+        # Fetch on-chain ELO ratings if players have registered Aleo addresses
+        white_addr = game_room.player_addresses.get('white')
+        black_addr = game_room.player_addresses.get('black')
+        if white_addr:
+            elo = game_room.leo_cli.fetch_player_elo(white_addr)
+            if elo:
+                game_room.game.white_elo = elo
+                print(f"[Server] On-chain ELO for white: {elo}")
+        if black_addr:
+            elo = game_room.leo_cli.fetch_player_elo(black_addr)
+            if elo:
+                game_room.game.black_elo = elo
+                print(f"[Server] On-chain ELO for black: {elo}")
 
         # Record wagers for payout processing at game end
         if player_info.get('aleo_address') and player_info.get('wager_tx'):

@@ -167,7 +167,18 @@ class GameState:
             # Normal move
             self.set_piece(from_square, 0)
             self.set_piece(to_square, piece)
-        
+
+        # Pawn promotion: auto-queen when a pawn reaches the back rank
+        # White pawn (1) reaching rank 8 (squares 0-7)
+        # Black pawn (7) reaching rank 1 (squares 56-63)
+        promotion_piece = 0
+        if piece == 1 and to_square < 8:
+            promotion_piece = 5  # white queen
+            self.set_piece(to_square, promotion_piece)
+        elif piece == 7 and to_square >= 56:
+            promotion_piece = 11  # black queen
+            self.set_piece(to_square, promotion_piece)
+
         # Record move in history
         move_record = MoveRecord(
             from_square=from_square,
@@ -176,7 +187,7 @@ class GameState:
             piece_captured=captured_piece,
             is_castling=is_castling,
             is_en_passant=is_en_passant,
-            promotion_piece=0  # TODO: handle promotion
+            promotion_piece=promotion_piece,
         )
         self.move_history.append(move_record)
         
