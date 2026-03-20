@@ -644,3 +644,78 @@ body {
   color: #764ba2;
   font-weight: 600;
 }
+
+/* ── Game Over wager result ─────────────────────────────────────────────── */
+
+.wager-result {
+  margin: 12px 0;
+  padding: 10px 14px;
+  background: rgba(102, 126, 234, 0.1);
+  border-left: 3px solid #667eea;
+  border-radius: 0 6px 6px 0;
+  text-align: left;
+}
+
+.wager-result h3 {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+  color: #667eea;
+}
+
+.wager-result p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.claim-prompt {
+  border-left-color: #f5a623;
+  background: rgba(245, 166, 35, 0.1);
+}
+
+.claim-prompt h3 {
+  color: #f5a623;
+}
+
+.claim-prompt .btn-wallet {
+  margin-top: 8px;
+}
+
+.error-text {
+  color: #dc3545;
+  font-size: 0.9rem;
+}
+
+/* ── Victory animation overlay ──────────────────────────────────────────── */
+
+.victory-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.victory-overlay--visible {
+  opacity: 1;
+}
+
+.victory-gif {
+  max-width: min(640px, 90vw);
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.victory-skip {
+  margin-top: 20px;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  user-select: none;
+}

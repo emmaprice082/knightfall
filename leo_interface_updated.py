@@ -290,27 +290,26 @@ class LeoInterface:
                 
                 # Calculate visible squares based on piece type
                 if piece_type == 1:  # Pawn
-                    # CORRECTED PAWN VISIBILITY RULES:
-                    # - Pawns see ONLY forward squares (not diagonals by default)
-                    # - They see if the square ahead is occupied (but not which piece)
-                    # - Diagonal squares are NOT visible unless another piece also attacks them
-                    
-                    # Row 0 = rank 8, Row 7 = rank 1
-                    # White moves from rank 2 (row 6) toward rank 8 (row 0) = negative
-                    # Black moves from rank 7 (row 1) toward rank 1 (row 7) = positive
+                    # White moves from rank 2 (row 6) toward rank 8 (row 0) = negative row
+                    # Black moves from rank 7 (row 1) toward rank 1 (row 7) = positive row
                     forward = -1 if is_white_piece else 1
-                    
-                    # See 1 square forward ONLY (no diagonals)
-                    new_row, new_col = row + forward, col
+                    new_row = row + forward
+
                     if 0 <= new_row < 8:
-                        visibility |= (1 << (new_row * 8 + new_col))
-                    
+                        # Forward square
+                        visibility |= (1 << (new_row * 8 + col))
+                        # Diagonal attack squares (standard fog-of-war visibility)
+                        if col > 0:
+                            visibility |= (1 << (new_row * 8 + col - 1))
+                        if col < 7:
+                            visibility |= (1 << (new_row * 8 + col + 1))
+
                     # If on starting position, also see 2 squares forward
                     starting_row = 6 if is_white_piece else 1
                     if row == starting_row:
-                        new_row = row + 2 * forward
-                        if 0 <= new_row < 8:
-                            visibility |= (1 << (new_row * 8 + col))
+                        new_row2 = row + 2 * forward
+                        if 0 <= new_row2 < 8:
+                            visibility |= (1 << (new_row2 * 8 + col))
                 
                 elif piece_type == 2:  # Knight
                     # Knights see L-shaped moves

@@ -8,8 +8,14 @@ from flask import Flask, render_template, session, request, jsonify
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_cors import CORS
 import secrets
+import subprocess
+import threading
+import os
 from typing import Dict, Optional
 import json
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from game_state import GameState
 from leo_cli_interface import LeoCliInterface
@@ -26,6 +32,50 @@ games: Dict[str, dict] = {}
 players: Dict[str, dict] = {}  # session_id -> player_info
 waiting_players: list = []
 
+WAGER_AMOUNT_MICROCREDITS = 1_000_000  # 1 ALEO
+
+# Unclaimed payouts: session_id -> {'amount': int, 'reason': str}
+# Populated when a player wins but has no Aleo address on file at game end.
+pending_payouts: Dict[str, dict] = {}
+
+
+def send_aleo_transfer(recipient: str, amount_microcredits: int):
+    """
+    Send ALEO from the custodial wallet to a recipient.
+    Runs in a background thread so it doesn't block the event loop.
+    Requires the CUSTODIAL_PRIVATE_KEY environment variable.
+    """
+    private_key = os.environ.get('CUSTODIAL_PRIVATE_KEY')
+    if not private_key:
+        print(f"[Payout] ⚠️  CUSTODIAL_PRIVATE_KEY not set — skipping transfer of "
+              f"{amount_microcredits} microcredits to {recipient}")
+        return
+
+    def _send():
+        cmd = [
+            'snarkos', 'developer', 'execute',
+            'credits.aleo', 'transfer_public',
+            recipient,
+            f'{amount_microcredits}u64',
+            '--private-key', private_key,
+            '--query', 'https://api.explorer.provable.com/v1/testnet',
+            '--broadcast', 'https://api.explorer.provable.com/v1/testnet/transaction/broadcast',
+            '--priority-fee', '100000',
+        ]
+        print(f"[Payout] Sending {amount_microcredits} microcredits → {recipient}")
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            if result.returncode == 0:
+                print(f"[Payout] ✅ Transfer sent: {result.stdout.strip()[:200]}")
+            else:
+                print(f"[Payout] ❌ Transfer failed: {result.stderr.strip()[:200]}")
+        except subprocess.TimeoutExpired:
+            print(f"[Payout] ❌ Transfer timed out for {recipient}")
+        except Exception as e:
+            print(f"[Payout] ❌ Transfer exception: {e}")
+
+    threading.Thread(target=_send, daemon=True).start()
+
 
 class GameRoom:
     """Manages a single game between two players"""
@@ -40,11 +90,62 @@ class GameRoom:
         
         # Use Leo CLI for all validation
         self.leo_cli = LeoCliInterface()
-        
+
         # Fallback to Python for development
         self.leo_python = LeoInterface()
-        
+
         self.spectators = []
+
+        # Wager tracking: color -> {address, tx, amount}
+        # Only populated when a player submitted a wager transaction
+        self.wagers = {}
+
+        # Session IDs for pending payout claims: color -> session_id
+        self.session_ids = {}
+
+    def process_payouts(self, winner: int):
+        """
+        Send ALEO from the custodial wallet based on wager state.
+          winner=1 → white wins, winner=2 → black wins, winner=3 → draw
+        If a recipient has no address on file the amount is parked in
+        pending_payouts keyed by their session_id so they can claim later.
+        """
+        white_wagered = 'white' in self.wagers
+        black_wagered = 'black' in self.wagers
+
+        if not white_wagered and not black_wagered:
+            return
+
+        print(f"[Payouts] white_wagered={white_wagered}, black_wagered={black_wagered}, winner={winner}")
+
+        def pay(color: str, amount: int):
+            address = self.wagers.get(color, {}).get('address')
+            if address:
+                send_aleo_transfer(address, amount)
+            else:
+                # No wallet on file — park so they can claim after connecting
+                sid = self.session_ids.get(color)
+                if sid:
+                    pending_payouts[sid] = {
+                        'amount': amount,
+                        'reason': f'{amount // 1_000_000} ALEO game winnings',
+                    }
+                    print(f"[Payouts] Parked {amount} microcredits for {color} (session {sid})")
+                else:
+                    print(f"[Payouts] ⚠️  No address or session for {color} — {amount} microcredits unclaimed")
+
+        if white_wagered and black_wagered:
+            total = self.wagers['white']['amount'] + self.wagers['black']['amount']
+            if winner == 3:  # draw — refund each
+                pay('white', self.wagers['white']['amount'])
+                pay('black', self.wagers['black']['amount'])
+            elif winner == 1:
+                pay('white', total)
+            elif winner == 2:
+                pay('black', total)
+        else:
+            color = 'white' if white_wagered else 'black'
+            pay(color, self.wagers[color]['amount'])
     
     def get_game_state(self, player_side: Optional[str] = None) -> dict:
         """Get game state with fog of war for specific player"""
@@ -172,9 +273,21 @@ class GameRoom:
                 self.game.white_elo = new_white_elo
                 self.game.black_elo = new_black_elo
                 print(f"[SERVER MOVE] ELO updated: white {old_white_elo}->{new_white_elo}, black {old_black_elo}->{new_black_elo}", flush=True)
-            
+                self.process_payouts(winner)
+
             print(f"[SERVER MOVE] Returning success!{' (GAME OVER)' if game_over else ''}", flush=True)
-            return {'success': True, 'game_over': game_over, 'winner': winner if game_over else None}
+            return {
+                'success': True,
+                'game_over': game_over,
+                'winner': winner if game_over else None,
+                'old_white_elo': old_white_elo if game_over else None,
+                'old_black_elo': old_black_elo if game_over else None,
+                'wager_payout': {
+                    'white_wagered': 'white' in self.wagers,
+                    'black_wagered': 'black' in self.wagers,
+                    'amount': WAGER_AMOUNT_MICROCREDITS,
+                } if game_over else None,
+            }
         else:
             return {'success': False, 'error': 'Move execution failed'}
 
@@ -218,13 +331,24 @@ def handle_disconnect():
         if session_id in waiting_players:
             waiting_players.remove(session_id)
         
-        # Handle game abandonment
+        # Handle game abandonment (disconnect = forfeit)
         if 'game_id' in player_info:
             game_id = player_info['game_id']
             if game_id in games:
                 game_room = games[game_id]
+                disconnected_color = player_info.get('color')
+                if disconnected_color:
+                    forfeit_winner = 2 if disconnected_color == 'white' else 1
+                    # Update ELO
+                    new_white, new_black = game_room.leo_cli.calculate_elo_leo(
+                        game_room.game.white_elo, game_room.game.black_elo, forfeit_winner
+                    )
+                    game_room.game.white_elo = new_white
+                    game_room.game.black_elo = new_black
+                    # Pay out wagers
+                    game_room.process_payouts(forfeit_winner)
                 # Notify opponent
-                emit('opponent_disconnected', 
+                emit('opponent_disconnected',
                      {'message': f"{player_info['username']} disconnected"},
                      room=game_id)
                 # Clean up game
@@ -263,12 +387,20 @@ def handle_find_game(data):
         return
     
     player_info = players[session_id]
-    
+
+    # Store wallet info if provided
+    aleo_address = data.get('aleo_address')
+    wager_tx = data.get('wager_tx')
+    if aleo_address:
+        player_info['aleo_address'] = aleo_address
+    if wager_tx:
+        player_info['wager_tx'] = wager_tx
+
     # Check if already in a game
     if 'game_id' in player_info:
         emit('error', {'message': 'Already in a game'})
         return
-    
+
     # Try to match with waiting player
     if waiting_players and waiting_players[0] != session_id:
         # Match found!
@@ -282,12 +414,30 @@ def handle_find_game(data):
         
         game_room = GameRoom(game_id, white_player, black_player)
         games[game_id] = game_room
-        
-        # Assign colors (first player is white)
+
+        # Assign colors (joining player is white, waiting player is black)
         player_info['game_id'] = game_id
         player_info['color'] = 'white'
         opponent_info['game_id'] = game_id
         opponent_info['color'] = 'black'
+
+        # Record session IDs so pending payouts can be claimed later
+        game_room.session_ids['white'] = session_id
+        game_room.session_ids['black'] = opponent_id
+
+        # Record wagers for payout processing at game end
+        if player_info.get('aleo_address') and player_info.get('wager_tx'):
+            game_room.wagers['white'] = {
+                'address': player_info['aleo_address'],
+                'tx': player_info['wager_tx'],
+                'amount': WAGER_AMOUNT_MICROCREDITS,
+            }
+        if opponent_info.get('aleo_address') and opponent_info.get('wager_tx'):
+            game_room.wagers['black'] = {
+                'address': opponent_info['aleo_address'],
+                'tx': opponent_info['wager_tx'],
+                'amount': WAGER_AMOUNT_MICROCREDITS,
+            }
         
         # Join room
         join_room(game_id, sid=session_id)
@@ -356,7 +506,10 @@ def handle_make_move(data):
             'game_state_white': game_room.get_game_state('white'),
             'game_state_black': game_room.get_game_state('black'),
             'game_over': result.get('game_over', False),
-            'winner': result.get('winner')
+            'winner': result.get('winner'),
+            'old_white_elo': result.get('old_white_elo'),
+            'old_black_elo': result.get('old_black_elo'),
+            'wager_payout': result.get('wager_payout'),
         }, room=game_id)
     else:
         emit('move_rejected', {
@@ -391,6 +544,98 @@ def handle_request_game_state():
     
     emit('game_state_update', {
         'game_state': game_room.get_game_state(player_color)
+    })
+
+
+@socketio.on('resign')
+def handle_resign():
+    """Handle a player resigning. Opponent wins; payouts are processed."""
+    session_id = request.sid
+
+    if session_id not in players:
+        emit('error', {'message': 'Not registered'})
+        return
+
+    player_info = players[session_id]
+
+    if 'game_id' not in player_info:
+        emit('error', {'message': 'Not in a game'})
+        return
+
+    game_id = player_info['game_id']
+    if game_id not in games:
+        emit('error', {'message': 'Game not found'})
+        return
+
+    game_room = games[game_id]
+    resigning_color = player_info['color']
+
+    # Opponent wins by default
+    winner = 2 if resigning_color == 'white' else 1
+
+    game_room.game.game_over = True
+    game_room.game.winner = winner
+
+    # Update ELO
+    old_white_elo = game_room.game.white_elo
+    old_black_elo = game_room.game.black_elo
+    new_white_elo, new_black_elo = game_room.leo_cli.calculate_elo_leo(
+        old_white_elo, old_black_elo, winner
+    )
+    game_room.game.white_elo = new_white_elo
+    game_room.game.black_elo = new_black_elo
+
+    # Pay out wagers
+    game_room.process_payouts(winner)
+
+    print(f"[Server] {resigning_color} resigned in game {game_id}, winner={winner}")
+
+    # Notify both players
+    emit('game_ended', {
+        'reason': 'resign',
+        'resigned': resigning_color,
+        'winner': winner,
+        'game_state_white': game_room.get_game_state('white'),
+        'game_state_black': game_room.get_game_state('black'),
+        'old_white_elo': old_white_elo,
+        'old_black_elo': old_black_elo,
+        'wager_payout': {
+            'white_wagered': 'white' in game_room.wagers,
+            'black_wagered': 'black' in game_room.wagers,
+            'amount': WAGER_AMOUNT_MICROCREDITS,
+        },
+    }, room=game_id)
+
+    # Clean up
+    player_info.pop('game_id', None)
+    player_info.pop('color', None)
+    del games[game_id]
+
+
+@socketio.on('claim_winnings')
+def handle_claim_winnings(data):
+    """
+    Called when a winner connects their wallet after the game to claim a
+    pending payout that couldn't be sent at game-end (no address on file).
+    """
+    session_id = request.sid
+    aleo_address = data.get('aleo_address', '').strip()
+
+    if not aleo_address:
+        emit('claim_result', {'success': False, 'error': 'No address provided'})
+        return
+
+    payout = pending_payouts.pop(session_id, None)
+    if not payout:
+        emit('claim_result', {'success': False, 'error': 'No pending payout found'})
+        return
+
+    print(f"[Claim] {session_id} claiming {payout['amount']} microcredits → {aleo_address}")
+    send_aleo_transfer(aleo_address, payout['amount'])
+    emit('claim_result', {
+        'success': True,
+        'amount': payout['amount'],
+        'reason': payout['reason'],
     })
 
 
