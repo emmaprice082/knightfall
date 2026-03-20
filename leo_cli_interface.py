@@ -14,7 +14,7 @@ from typing import Dict, List, Tuple, Optional
 from game_state import GameState
 
 
-ALEO_API = "https://api.explorer.provable.com/v2/testnet"
+ALEO_API = "https://api.explorer.provable.com/v1/testnet"
 LEADERBOARD_PROGRAM = "knightfall_leaderboard.aleo"
 
 
@@ -206,9 +206,9 @@ class LeoCliInterface:
                 black_address,
                 f'{winner}u8',
                 '--private-key', private_key,
-                '--query', 'https://api.explorer.provable.com/v2',
+                '--query', 'https://api.explorer.provable.com/v1',
                 '--broadcast', f'{ALEO_API}/transaction/broadcast',
-                '--network', 'testnet',
+                '--network', '1',
                 '--priority-fee', '100000',
             ]
             w_short = white_address[:12]

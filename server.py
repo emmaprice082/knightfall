@@ -58,9 +58,9 @@ def send_aleo_transfer(recipient: str, amount_microcredits: int):
             recipient,
             f'{amount_microcredits}u64',
             '--private-key', private_key,
-            '--query', 'https://api.explorer.provable.com/v2',
-            '--broadcast', 'https://api.explorer.provable.com/v2/testnet/transaction/broadcast',
-            '--network', 'testnet',
+            '--query', 'https://api.explorer.provable.com/v1',
+            '--broadcast', 'https://api.explorer.provable.com/v1/testnet/transaction/broadcast',
+            '--network', '1',
             '--priority-fee', '100000',
         ]
         print(f"[Payout] Sending {amount_microcredits} microcredits → {recipient}")
