@@ -58,17 +58,21 @@ def send_aleo_transfer(recipient: str, amount_microcredits: int):
             recipient,
             f'{amount_microcredits}u64',
             '--private-key', private_key,
-            '--query', 'https://api.explorer.provable.com/v1/testnet',
-            '--broadcast', 'https://api.explorer.provable.com/v1/testnet/transaction/broadcast',
+            '--query', 'https://api.explorer.provable.com/v2/testnet',
+            '--broadcast', 'https://api.explorer.provable.com/v2/testnet/transaction/broadcast',
             '--priority-fee', '100000',
         ]
         print(f"[Payout] Sending {amount_microcredits} microcredits → {recipient}")
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
             if result.returncode == 0:
-                print(f"[Payout] ✅ Transfer sent: {result.stdout.strip()[:200]}")
+                print(f"[Payout] ✅ Transfer sent: {result.stdout.strip()[:300]}")
             else:
-                print(f"[Payout] ❌ Transfer failed: {result.stderr.strip()[:200]}")
+                out = result.stdout.strip()[:300]
+                err = result.stderr.strip()[:300]
+                print(f"[Payout] ❌ Transfer failed (rc={result.returncode})")
+                if out: print(f"[Payout]   stdout: {out}")
+                if err: print(f"[Payout]   stderr: {err}")
         except subprocess.TimeoutExpired:
             print(f"[Payout] ❌ Transfer timed out for {recipient}")
         except Exception as e:

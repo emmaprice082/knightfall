@@ -14,7 +14,7 @@ from typing import Dict, List, Tuple, Optional
 from game_state import GameState
 
 
-ALEO_API = "https://api.explorer.provable.com/v1/testnet"
+ALEO_API = "https://api.explorer.provable.com/v2/testnet"
 LEADERBOARD_PROGRAM = "knightfall_leaderboard.aleo"
 
 
@@ -86,10 +86,15 @@ class LeoCliInterface:
 
     @staticmethod
     def _parse_u32_tuple(output: str) -> Optional[Tuple[int, int]]:
-        """Parse a Leo (u32, u32) output tuple: `• (1216u32, 1184u32)`."""
-        m = re.search(r'\((\d+)u32,\s*(\d+)u32\)', output)
-        if m:
-            return int(m.group(1)), int(m.group(2))
+        """
+        Parse two successive Leo u32 outputs.
+        `leo run` emits each return value on its own bullet line:
+            • 1184u32
+            • 1216u32
+        """
+        values = re.findall(r'•\s*(\d+)u32', output)
+        if len(values) >= 2:
+            return int(values[0]), int(values[1])
         return None
 
     # ──────────────────────────────────────────────────────────────────────────
