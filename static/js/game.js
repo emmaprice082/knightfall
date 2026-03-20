@@ -39,8 +39,9 @@ class KnightfallGame {
   preloadVictoryGifs() {
     const allGifs = [
       "/static/images/anime/victory1.gif",
-      "/static/images/anime/victory2.gif",
+      "/static/images/anime/draw.gif",
       "/static/images/anime/victory3.gif",
+      "/static/images/anime/loser.gif",
       "/static/images/harry_potter/hp1.gif",
       "/static/images/harry_potter/hp2.gif",
       "/static/images/harry_potter/hp3.gif",
@@ -133,7 +134,12 @@ class KnightfallGame {
       if (data.game_over) {
         const resolvedOldWhite = data.old_white_elo ?? oldWhiteElo;
         const resolvedOldBlack = data.old_black_elo ?? oldBlackElo;
-        this.handleGameOver(data.winner, resolvedOldWhite, resolvedOldBlack, data.wager_payout);
+        this.handleGameOver(
+          data.winner,
+          resolvedOldWhite,
+          resolvedOldBlack,
+          data.wager_payout,
+        );
       }
     });
 
@@ -158,7 +164,12 @@ class KnightfallGame {
         this.renderBoard();
         this.updateGameInfo();
       }
-      this.handleGameOver(data.winner, oldWhiteElo, oldBlackElo, data.wager_payout);
+      this.handleGameOver(
+        data.winner,
+        oldWhiteElo,
+        oldBlackElo,
+        data.wager_payout,
+      );
     });
 
     this.socket.on("opponent_disconnected", (data) => {
@@ -309,7 +320,12 @@ class KnightfallGame {
 
   isWagerEnabled() {
     const toggle = document.getElementById("wager-toggle");
-    return toggle && toggle.checked && window.shieldWallet && window.shieldWallet.isConnected();
+    return (
+      toggle &&
+      toggle.checked &&
+      window.shieldWallet &&
+      window.shieldWallet.isConnected()
+    );
   }
 
   // ─── Registration / Matchmaking ──────────────────────────────────────────
@@ -357,7 +373,9 @@ class KnightfallGame {
       }
     } else {
       this.socket.emit("find_game", {
-        aleo_address: window.shieldWallet ? window.shieldWallet.getAddress() : null,
+        aleo_address: window.shieldWallet
+          ? window.shieldWallet.getAddress()
+          : null,
       });
     }
   }
@@ -456,7 +474,7 @@ class KnightfallGame {
 
         // Add click listener
         squareElement.addEventListener("click", () =>
-          this.handleSquareClick(square)
+          this.handleSquareClick(square),
         );
 
         boardElement.appendChild(squareElement);
@@ -508,7 +526,7 @@ class KnightfallGame {
 
     // Highlight selected square
     const squareElement = document.querySelector(
-      `.square[data-square="${square}"]`
+      `.square[data-square="${square}"]`,
     );
     if (squareElement) {
       squareElement.classList.add("selected");
@@ -582,29 +600,45 @@ class KnightfallGame {
   }
 
   showVictoryAnimation(winner, callback) {
-    // Only play the animation for an actual winner (not draw)
-    if (winner === 3) {
+    const themeSelect = document.getElementById("victory-theme-select");
+    const theme = themeSelect ? themeSelect.value : "anime";
+
+    // Harry Potter: skip animation entirely on draws
+    if (winner === 3 && theme !== "anime") {
       callback();
       return;
     }
 
-    const VICTORY_GIFS = {
-      anime: [
-        "/static/images/anime/victory1.gif",
-        "/static/images/anime/victory2.gif",
-        "/static/images/anime/victory3.gif",
-      ],
-      harry_potter: [
-        "/static/images/harry_potter/hp1.gif",
-        "/static/images/harry_potter/hp2.gif",
-        "/static/images/harry_potter/hp3.gif",
-        "/static/images/harry_potter/hp4.gif",
-      ],
-    };
-    const themeSelect = document.getElementById("victory-theme-select");
-    const theme = themeSelect ? themeSelect.value : "anime";
-    const pool = VICTORY_GIFS[theme] || VICTORY_GIFS.anime;
-    const gifPath = pool[Math.floor(Math.random() * pool.length)];
+    const myColorNum = this.playerColor === "white" ? 1 : 2;
+    const iLost = winner !== myColorNum && winner !== 3;
+    const isDraw = winner === 3;
+
+    let gifPath;
+    if (theme === "harry_potter") {
+      if (iLost) {
+        gifPath = "/static/images/harry_potter/hp3.gif";
+      } else {
+        const winnerPool = [
+          "/static/images/harry_potter/hp1.gif",
+          "/static/images/harry_potter/hp2.gif",
+          "/static/images/harry_potter/hp4.gif",
+        ];
+        gifPath = winnerPool[Math.floor(Math.random() * winnerPool.length)];
+      }
+    } else {
+      // Anime theme
+      if (isDraw) {
+        gifPath = "/static/images/anime/draw.gif";
+      } else if (iLost) {
+        gifPath = "/static/images/anime/loser.gif";
+      } else {
+        const winnerPool = [
+          "/static/images/anime/victory1.gif",
+          "/static/images/anime/victory3.gif",
+        ];
+        gifPath = winnerPool[Math.floor(Math.random() * winnerPool.length)];
+      }
+    }
 
     const overlay = document.createElement("div");
     overlay.className = "victory-overlay";
@@ -628,14 +662,20 @@ class KnightfallGame {
     document.body.appendChild(overlay);
 
     // Fade in
-    requestAnimationFrame(() => overlay.classList.add("victory-overlay--visible"));
+    requestAnimationFrame(() =>
+      overlay.classList.add("victory-overlay--visible"),
+    );
 
     const dismiss = () => {
       overlay.classList.remove("victory-overlay--visible");
-      overlay.addEventListener("transitionend", () => {
-        overlay.remove();
-        callback();
-      }, { once: true });
+      overlay.addEventListener(
+        "transitionend",
+        () => {
+          overlay.remove();
+          callback();
+        },
+        { once: true },
+      );
     };
 
     // Auto-dismiss after 3.5 s (roughly one loop of the gif)
@@ -655,8 +695,8 @@ class KnightfallGame {
 
     const newWhiteElo = this.gameState.white_elo;
     const newBlackElo = this.gameState.black_elo;
-    const whiteChange = (oldWhiteElo != null) ? newWhiteElo - oldWhiteElo : 0;
-    const blackChange = (oldBlackElo != null) ? newBlackElo - oldBlackElo : 0;
+    const whiteChange = oldWhiteElo != null ? newWhiteElo - oldWhiteElo : 0;
+    const blackChange = oldBlackElo != null ? newBlackElo - oldBlackElo : 0;
     const displayOldWhite = oldWhiteElo ?? newWhiteElo;
     const displayOldBlack = oldBlackElo ?? newBlackElo;
 
@@ -683,14 +723,16 @@ class KnightfallGame {
 
     // Check if this player won but has no wallet connected — they have a pending payout
     const myColorNum = this.playerColor === "white" ? 1 : 2;
-    const iWon = (winner === myColorNum);
-    const iWagered = wagerPayout && (
-      (this.playerColor === "white" && wagerPayout.white_wagered) ||
-      (this.playerColor === "black" && wagerPayout.black_wagered)
-    );
-    const bothWagered = wagerPayout && wagerPayout.white_wagered && wagerPayout.black_wagered;
+    const iWon = winner === myColorNum;
+    const iWagered =
+      wagerPayout &&
+      ((this.playerColor === "white" && wagerPayout.white_wagered) ||
+        (this.playerColor === "black" && wagerPayout.black_wagered));
+    const bothWagered =
+      wagerPayout && wagerPayout.white_wagered && wagerPayout.black_wagered;
     // Need to prompt if: I won, funds exist (both wagered), and I have no wallet
-    const needsWalletForPayout = iWon && bothWagered && !window.shieldWallet?.isConnected();
+    const needsWalletForPayout =
+      iWon && bothWagered && !window.shieldWallet?.isConnected();
 
     document.getElementById("resign-btn").style.display = "none";
     document.getElementById("new-game-btn").style.display = "inline-block";
@@ -747,7 +789,9 @@ class KnightfallGame {
             claimBtn.disabled = true;
             try {
               const account = await window.shieldWallet.connect();
-              this.socket.emit("claim_winnings", { aleo_address: account.address });
+              this.socket.emit("claim_winnings", {
+                aleo_address: account.address,
+              });
               this.socket.once("claim_result", (res) => {
                 const claimDiv = claimBtn.closest(".claim-prompt");
                 if (res.success) {
