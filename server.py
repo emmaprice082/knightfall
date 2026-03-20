@@ -155,11 +155,15 @@ class GameRoom:
             color = 'white' if white_wagered else 'black'
             pay(color, self.wagers[color]['amount'])
 
-        # Record game to on-chain leaderboard if both players have Aleo addresses
+    def record_to_leaderboard(self, winner: int):
+        """Record game result on-chain if both players have Aleo addresses."""
         white_addr = self.player_addresses.get('white')
         black_addr = self.player_addresses.get('black')
         if white_addr and black_addr:
             self.leo_cli.record_game_leaderboard(white_addr, black_addr, winner)
+        else:
+            print(f"[Leaderboard] Skipping — missing address(es): "
+                  f"white={bool(white_addr)}, black={bool(black_addr)}")
     
     def get_game_state(self, player_side: Optional[str] = None) -> dict:
         """Get game state with fog of war for specific player"""
@@ -288,6 +292,7 @@ class GameRoom:
                 self.game.black_elo = new_black_elo
                 print(f"[SERVER MOVE] ELO updated: white {old_white_elo}->{new_white_elo}, black {old_black_elo}->{new_black_elo}", flush=True)
                 self.process_payouts(winner)
+                self.record_to_leaderboard(winner)
 
             print(f"[SERVER MOVE] Returning success!{' (GAME OVER)' if game_over else ''}", flush=True)
             return {
@@ -359,8 +364,9 @@ def handle_disconnect():
                     )
                     game_room.game.white_elo = new_white
                     game_room.game.black_elo = new_black
-                    # Pay out wagers
+                    # Pay out wagers and record to leaderboard
                     game_room.process_payouts(forfeit_winner)
+                    game_room.record_to_leaderboard(forfeit_winner)
                 # Notify opponent
                 emit('opponent_disconnected',
                      {'message': f"{player_info['username']} disconnected"},
@@ -619,8 +625,9 @@ def handle_resign():
     game_room.game.white_elo = new_white_elo
     game_room.game.black_elo = new_black_elo
 
-    # Pay out wagers
+    # Pay out wagers and record to leaderboard
     game_room.process_payouts(winner)
+    game_room.record_to_leaderboard(winner)
 
     print(f"[Server] {resigning_color} resigned in game {game_id}, winner={winner}")
 
