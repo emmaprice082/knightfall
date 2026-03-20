@@ -25,9 +25,31 @@ class KnightfallGame {
     // Setup UI event listeners
     this.setupUIEventListeners();
 
-    // Load saved theme
+    // Load saved themes
     const savedTheme = BoardThemes.loadSavedTheme();
     document.getElementById("theme-select").value = savedTheme;
+    const savedVictoryTheme = localStorage.getItem("victoryTheme") || "anime";
+    const victorySelect = document.getElementById("victory-theme-select");
+    if (victorySelect) victorySelect.value = savedVictoryTheme;
+
+    // Preload all victory GIFs into browser cache so they play instantly
+    this.preloadVictoryGifs();
+  }
+
+  preloadVictoryGifs() {
+    const allGifs = [
+      "/static/images/anime/victory1.gif",
+      "/static/images/anime/victory2.gif",
+      "/static/images/anime/victory3.gif",
+      "/static/images/harry_potter/hp1.gif",
+      "/static/images/harry_potter/hp2.gif",
+      "/static/images/harry_potter/hp3.gif",
+      "/static/images/harry_potter/hp4.gif",
+    ];
+    allGifs.forEach((src) => {
+      const img = new Image();
+      img.src = src;
+    });
   }
 
   connectToServer() {
@@ -193,6 +215,14 @@ class KnightfallGame {
       const board = document.getElementById("chess-board");
       BoardThemes.applyTheme(theme, board);
     });
+
+    // Victory theme selection
+    const victorySelect = document.getElementById("victory-theme-select");
+    if (victorySelect) {
+      victorySelect.addEventListener("change", (e) => {
+        localStorage.setItem("victoryTheme", e.target.value);
+      });
+    }
 
     // Game controls
     document.getElementById("resign-btn").addEventListener("click", () => {
@@ -558,13 +588,30 @@ class KnightfallGame {
       return;
     }
 
+    const VICTORY_GIFS = {
+      anime: [
+        "/static/images/anime/victory1.gif",
+        "/static/images/anime/victory2.gif",
+        "/static/images/anime/victory3.gif",
+      ],
+      harry_potter: [
+        "/static/images/harry_potter/hp1.gif",
+        "/static/images/harry_potter/hp2.gif",
+        "/static/images/harry_potter/hp3.gif",
+        "/static/images/harry_potter/hp4.gif",
+      ],
+    };
+    const themeSelect = document.getElementById("victory-theme-select");
+    const theme = themeSelect ? themeSelect.value : "anime";
+    const pool = VICTORY_GIFS[theme] || VICTORY_GIFS.anime;
+    const gifPath = pool[Math.floor(Math.random() * pool.length)];
+
     const overlay = document.createElement("div");
     overlay.className = "victory-overlay";
 
     const gif = document.createElement("img");
     gif.className = "victory-gif";
-    // Force GIF to restart from frame 1 each time by busting cache
-    gif.src = `/static/images/victory.gif?t=${Date.now()}`;
+    gif.src = gifPath;
     // If the file isn't found, skip straight to the modal
     gif.onerror = () => {
       clearTimeout(timer);
