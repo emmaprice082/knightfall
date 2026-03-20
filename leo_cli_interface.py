@@ -219,7 +219,11 @@ class LeoCliInterface:
                 if result.returncode == 0:
                     print(f"[Leaderboard] ✅ Recorded: {result.stdout.strip()[:200]}")
                 else:
-                    print(f"[Leaderboard] ❌ Failed: {result.stderr.strip()[:200]}")
+                    out = result.stdout.strip()[:300]
+                    err = result.stderr.strip()[:300]
+                    print(f"[Leaderboard] ❌ Failed (rc={result.returncode})")
+                    if out: print(f"[Leaderboard]   stdout: {out}")
+                    if err: print(f"[Leaderboard]   stderr: {err}")
             except subprocess.TimeoutExpired:
                 print(f"[Leaderboard] ❌ Timed out recording game")
             except Exception as e:

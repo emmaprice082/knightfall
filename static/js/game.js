@@ -13,6 +13,8 @@ class KnightfallGame {
     this.gameState = null;
     this.selectedSquare = null;
     this.moveHistory = [];
+    this.whiteAddress = null;
+    this.blackAddress = null;
 
     // Initialize
     this.init();
@@ -98,6 +100,8 @@ class KnightfallGame {
       this.gameId = data.game_id;
       this.playerColor = data.color;
       this.gameState = data.game_state;
+      this.whiteAddress = data.white_address || null;
+      this.blackAddress = data.black_address || null;
       this.moveHistory = [];
 
       this.showScreen("game");
@@ -178,6 +182,18 @@ class KnightfallGame {
       setTimeout(() => {
         this.showScreen("lobby");
       }, 3000);
+    });
+
+    // On-chain ELO fetch result
+    this.socket.on("elo_result", (data) => {
+      const eloEl = document.getElementById("player-elo");
+      if (data.elo != null) {
+        if (eloEl) eloEl.textContent = data.elo;
+        console.log(`[Client] On-chain ELO for ${data.address?.slice(0, 12)}…: ${data.elo}`);
+      } else {
+        if (eloEl) eloEl.textContent = "Unranked";
+        console.log(`[Client] No on-chain ELO for ${data.address?.slice(0, 12)}… (not registered)`);
+      }
     });
 
     // Error handling
@@ -280,6 +296,9 @@ class KnightfallGame {
     try {
       const account = await window.shieldWallet.connect();
       this.updateWalletUI(account.address);
+
+      // Fetch on-chain ELO for this address and update lobby display
+      this.socket.emit("get_elo", { aleo_address: account.address });
     } catch (err) {
       this.showMessage(err.message, "error");
       if (btn) {
@@ -552,9 +571,13 @@ class KnightfallGame {
     document.getElementById("black-player-name").textContent =
       this.gameState.black_player;
 
-    // Update ELO
-    document.getElementById("white-elo").textContent = this.gameState.white_elo;
-    document.getElementById("black-elo").textContent = this.gameState.black_elo;
+    // Update ELO — show "Unranked" for players without a wallet address
+    document.getElementById("white-elo").textContent = this.whiteAddress
+      ? this.gameState.white_elo
+      : "Unranked";
+    document.getElementById("black-elo").textContent = this.blackAddress
+      ? this.gameState.black_elo
+      : "Unranked";
 
     // Update turn indicator
     const turnText = this.gameState.is_white_turn
@@ -761,18 +784,22 @@ class KnightfallGame {
         ${claimSection}
         <div class="elo-changes">
           <h3>📊 ELO Rating Changes</h3>
-          <p>White (${this.gameState.white_player}):
-            ${displayOldWhite} → ${newWhiteElo}
-            <span class="elo-change-${whiteChange >= 0 ? "positive" : "negative"}">
-              (${whiteChange >= 0 ? "+" : ""}${whiteChange})
-            </span>
-          </p>
-          <p>Black (${this.gameState.black_player}):
-            ${displayOldBlack} → ${newBlackElo}
-            <span class="elo-change-${blackChange >= 0 ? "positive" : "negative"}">
-              (${blackChange >= 0 ? "+" : ""}${blackChange})
-            </span>
-          </p>
+          ${this.whiteAddress
+            ? `<p>White (${this.gameState.white_player}):
+                ${displayOldWhite} → ${newWhiteElo}
+                <span class="elo-change-${whiteChange >= 0 ? "positive" : "negative"}">
+                  (${whiteChange >= 0 ? "+" : ""}${whiteChange})
+                </span>
+               </p>`
+            : `<p>White (${this.gameState.white_player}): <em>Unranked</em></p>`}
+          ${this.blackAddress
+            ? `<p>Black (${this.gameState.black_player}):
+                ${displayOldBlack} → ${newBlackElo}
+                <span class="elo-change-${blackChange >= 0 ? "positive" : "negative"}">
+                  (${blackChange >= 0 ? "+" : ""}${blackChange})
+                </span>
+               </p>`
+            : `<p>Black (${this.gameState.black_player}): <em>Unranked</em></p>`}
         </div>
         <button class="btn btn-primary" onclick="location.reload()">New Game</button>
       `;

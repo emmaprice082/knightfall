@@ -11,6 +11,7 @@ import secrets
 import subprocess
 import threading
 import os
+import datetime
 from typing import Dict, Optional
 import json
 from dotenv import load_dotenv
@@ -33,6 +34,10 @@ players: Dict[str, dict] = {}  # session_id -> player_info
 waiting_players: list = []
 
 WAGER_AMOUNT_MICROCREDITS = 1_000_000  # 1 ALEO
+
+# Debug: hard-code a second player's address (useful when only one Shield wallet
+# is available for testing).  Set DEBUG_P2_ADDRESS in .env to enable.
+DEBUG_P2_ADDRESS = os.environ.get('DEBUG_P2_ADDRESS', '').strip()
 
 # Unclaimed payouts: session_id -> {'amount': int, 'reason': str}
 # Populated when a player wins but has no Aleo address on file at game end.
@@ -164,6 +169,49 @@ class GameRoom:
         else:
             print(f"[Leaderboard] Skipping — missing address(es): "
                   f"white={bool(white_addr)}, black={bool(black_addr)}")
+
+    def log_game_record(self, winner: int, end_reason: str = 'normal'):
+        """
+        Append a complete game record to game_records.jsonl.
+        Each line is a self-contained JSON object with everything needed
+        to look up funds and issue a manual refund if something went wrong.
+        """
+        WINNER_LABELS = {1: 'white', 2: 'black', 3: 'draw'}
+        record = {
+            'timestamp': datetime.datetime.utcnow().isoformat() + 'Z',
+            'game_id': self.game_id,
+            'end_reason': end_reason,           # 'normal' | 'resign' | 'disconnect'
+            'winner': WINNER_LABELS.get(winner, str(winner)),
+            'white': {
+                'username': self.white_player,
+                'session_id': self.session_ids.get('white'),
+                'aleo_address': self.player_addresses.get('white'),
+                'wagered': 'white' in self.wagers,
+                'wager_tx': self.wagers.get('white', {}).get('tx'),
+                'wager_amount_microcredits': self.wagers.get('white', {}).get('amount'),
+                'elo_before': None,   # filled below
+                'elo_after': self.game.white_elo,
+            },
+            'black': {
+                'username': self.black_player,
+                'session_id': self.session_ids.get('black'),
+                'aleo_address': self.player_addresses.get('black'),
+                'wagered': 'black' in self.wagers,
+                'wager_tx': self.wagers.get('black', {}).get('tx'),
+                'wager_amount_microcredits': self.wagers.get('black', {}).get('amount'),
+                'elo_before': None,
+                'elo_after': self.game.black_elo,
+            },
+            'move_count': self.game.move_count,
+        }
+
+        log_path = os.path.join(os.path.dirname(__file__), 'game_records.jsonl')
+        try:
+            with open(log_path, 'a') as f:
+                f.write(json.dumps(record) + '\n')
+            print(f"[GameLog] Record written for game {self.game_id}")
+        except Exception as e:
+            print(f"[GameLog] ⚠️  Failed to write record: {e}")
     
     def get_game_state(self, player_side: Optional[str] = None) -> dict:
         """Get game state with fog of war for specific player"""
@@ -448,8 +496,11 @@ def handle_find_game(data):
         # Store Aleo addresses for leaderboard recording at game end
         if player_info.get('aleo_address'):
             game_room.player_addresses['white'] = player_info['aleo_address']
-        if opponent_info.get('aleo_address'):
-            game_room.player_addresses['black'] = opponent_info['aleo_address']
+        black_addr_candidate = opponent_info.get('aleo_address') or (DEBUG_P2_ADDRESS or None)
+        if black_addr_candidate:
+            game_room.player_addresses['black'] = black_addr_candidate
+            if not opponent_info.get('aleo_address') and DEBUG_P2_ADDRESS:
+                print(f"[Server] DEBUG: Using DEBUG_P2_ADDRESS for black player: {DEBUG_P2_ADDRESS[:12]}…")
 
         # Fetch on-chain ELO ratings if players have registered Aleo addresses
         white_addr = game_room.player_addresses.get('white')
@@ -490,14 +541,18 @@ def handle_find_game(data):
             'game_id': game_id,
             'color': 'white',
             'opponent': black_player,
-            'game_state': game_room.get_game_state('white')
+            'game_state': game_room.get_game_state('white'),
+            'white_address': game_room.player_addresses.get('white'),
+            'black_address': game_room.player_addresses.get('black'),
         }, room=session_id)
-        
+
         emit('game_started', {
             'game_id': game_id,
             'color': 'black',
             'opponent': white_player,
-            'game_state': game_room.get_game_state('black')
+            'game_state': game_room.get_game_state('black'),
+            'white_address': game_room.player_addresses.get('white'),
+            'black_address': game_room.player_addresses.get('black'),
         }, room=opponent_id)
         
     else:
@@ -678,6 +733,19 @@ def handle_claim_winnings(data):
         'amount': payout['amount'],
         'reason': payout['reason'],
     })
+
+
+@socketio.on('get_elo')
+def handle_get_elo(data):
+    """Fetch on-chain ELO for a given Aleo address."""
+    address = (data.get('aleo_address') or '').strip()
+    if not address:
+        emit('elo_result', {'elo': None, 'address': address})
+        return
+
+    leo_cli = LeoCliInterface()
+    elo = leo_cli.fetch_player_elo(address)
+    emit('elo_result', {'elo': elo, 'address': address})
 
 
 @socketio.on('cancel_search')
